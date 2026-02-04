@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: ot-tracker-backend
+    env: node
+    buildCommand: cd backend && npm install && npm run build
+    startCommand: cd backend && npm run start:prod
+    envVars:
+      - key: DATABASE_URL
+        sync: false  # You'll set this manually in Render dashboard
+      - key: JWT_SECRET
+        sync: false
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+        
