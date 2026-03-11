@@ -13,283 +13,228 @@ import {
   Chip,
   Button,
   Grid,
-  Paper,
-  Divider,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
 import {
   Add,
   AccessTime,
-  CheckCircle,
-  Pending,
-  Cancel,
+  FilterList,
+  FileDownload,
+  Assignment,
+  CheckCircleOutline,
+  HourglassEmpty,
+  CalendarMonth,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { useOtStore } from '../stores/otStore';
 import { OtStatus } from '../types';
 
-const getStatusColor = (status: OtStatus): 'success' | 'error' | 'warning' | 'default' => {
+const getStatusChip = (status: OtStatus) => {
   switch (status) {
     case OtStatus.APPROVED:
-      return 'success';
+      return <Chip label="Approved" size="small" sx={{ bgcolor: '#DCFCE7', color: '#16A34A', fontWeight: 700, border: 'none' }} />;
     case OtStatus.REJECTED:
-      return 'error';
+      return <Chip label="Rejected" size="small" sx={{ bgcolor: '#FEE2E2', color: '#DC2626', fontWeight: 700, border: 'none' }} />;
     case OtStatus.PENDING:
-      return 'warning';
+      return <Chip label="Pending" size="small" sx={{ bgcolor: '#FEF9C3', color: '#CA8A04', fontWeight: 700, border: 'none' }} />;
     default:
-      return 'default';
+      return <Chip label={status} size="small" />;
   }
 };
 
-const getStatusIcon = (status: OtStatus): React.ReactElement | null => {
-  switch (status) {
-    case OtStatus.APPROVED:
-      return <CheckCircle fontSize="small" />;
-    case OtStatus.REJECTED:
-      return <Cancel fontSize="small" />;
-    case OtStatus.PENDING:
-      return <Pending fontSize="small" />;
-    default:
-      return null;
-  }
+const formatDuration = (hours: number) => {
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  return `${h}h ${String(m).padStart(2, '0')}m`;
 };
 
 export const MyOtRecords: React.FC = () => {
-  console.log('MyOtRecords component rendering...');
-  
-  try {
-    const navigate = useNavigate();
-    const { myOtRecords, fetchMyOtRecords, isLoading, error } = useOtStore();
+  const navigate = useNavigate();
+  const { myOtRecords, fetchMyOtRecords, isLoading, error } = useOtStore();
 
-    console.log('MyOtRecords state:', { myOtRecords, isLoading, error });
+  useEffect(() => {
+    fetchMyOtRecords();
+  }, [fetchMyOtRecords]);
 
-    useEffect(() => {
-      console.log('MyOtRecords useEffect running, calling fetchMyOtRecords...');
-      fetchMyOtRecords();
-    }, [fetchMyOtRecords]);
-
-    // Show loading state
-    if (isLoading) {
-      console.log('MyOtRecords showing loading state');
-      return (
-        <Box sx={{ flexGrow: 1, p: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
-          <Typography variant="h6">Loading OT records...</Typography>
-        </Box>
-      );
-    }
-
-    // Show error state
-    if (error) {
-      console.log('MyOtRecords showing error state:', error);
-      return (
-        <Box sx={{ flexGrow: 1, p: 3 }}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" color="error" gutterBottom>
-                Error loading OT records
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {error}
-              </Typography>
-              <Button 
-                variant="contained" 
-                sx={{ mt: 2 }} 
-                onClick={() => fetchMyOtRecords()}
-              >
-                Retry
-              </Button>
-            </CardContent>
-          </Card>
-        </Box>
-      );
-    }
-
-    console.log('MyOtRecords showing main content with records:', myOtRecords.length);
-
-  // Calculate summary stats
-  const totalRecords = myOtRecords.length;
-  const pendingRecords = myOtRecords.filter(record => record.status === OtStatus.PENDING).length;
-  const totalHours = myOtRecords
-    .filter(record => record.status === OtStatus.APPROVED)
-    .reduce((sum, record) => sum + Number(record.duration || 0), 0);
-
-  const currentMonthRecords = myOtRecords.filter(record => 
-    dayjs(record.date).isSame(dayjs(), 'month')
-  );
-  const currentMonthHours = currentMonthRecords
-    .filter(record => record.status === OtStatus.APPROVED)
-    .reduce((sum, record) => sum + Number(record.duration || 0), 0);
-
-  return (
-    <Box sx={{ flexGrow: 1, p: 3 }}>
-      {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h5" fontWeight="bold">
-          My OT Records
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => navigate('/create-ot')}
-        >
-          Submit New OT Request
-        </Button>
-      </Box>
-
-      {/* Summary Cards */}
-      <Grid container spacing={3} mb={3}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Typography variant="h4" color="primary" fontWeight="bold">
-              {totalRecords}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Total Requests
-            </Typography>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Typography variant="h4" color="warning.main" fontWeight="bold">
-              {pendingRecords}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Pending Approval
-            </Typography>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Typography variant="h4" color="success.main" fontWeight="bold">
-              {totalHours.toFixed(1)}h
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Total Approved Hours
-            </Typography>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Typography variant="h4" color="info.main" fontWeight="bold">
-              {currentMonthHours.toFixed(1)}h
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              This Month
-            </Typography>
-          </Paper>
-        </Grid>
-      </Grid>
-
-      {/* OT Records Table */}
-      <Card>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Recent OT Requests
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-          
-          {myOtRecords.length === 0 ? (
-            <Box textAlign="center" py={4}>
-              <AccessTime sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
-              <Typography variant="h6" color="text.secondary" gutterBottom>
-                No OT records found
-              </Typography>
-              <Typography variant="body2" color="text.secondary" mb={3}>
-                You haven't submitted any overtime requests yet.
-              </Typography>
-              <Button
-                variant="contained"
-                startIcon={<Add />}
-                onClick={() => navigate('/create-ot')}
-              >
-                Submit Your First OT Request
-              </Button>
-            </Box>
-          ) : (
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Time Period</TableCell>
-                    <TableCell>Duration</TableCell>
-                    <TableCell>Reason</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Submitted</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {myOtRecords.map((record) => (
-                    <TableRow key={record.id}>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight="medium">
-                          {dayjs(record.date).format('MMM DD, YYYY')}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {record.startTime} - {record.endTime}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight="medium">
-                          {Number(record.duration || 0).toFixed(1)}h
-                        </Typography>
-                      </TableCell>
-                      <TableCell sx={{ maxWidth: 300 }}>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                          title={record.reason}
-                        >
-                          {record.reason}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          icon={getStatusIcon(record.status) || undefined}
-                          label={record.status.toUpperCase()}
-                          color={getStatusColor(record.status)}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {dayjs(record.createdAt).format('MMM DD, YYYY')}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {dayjs(record.createdAt).format('HH:mm')}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </CardContent>
-      </Card>
-    </Box>
-  );
-  } catch (error) {
-    console.error('MyOtRecords render error:', error);
+  if (isLoading) {
     return (
-      <Box sx={{ flexGrow: 1, p: 3 }}>
+      <Box sx={{ p: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+        <Typography variant="body1" color="text.secondary">Loading OT records...</Typography>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ p: 3 }}>
         <Card>
           <CardContent>
-            <Typography variant="h6" color="error" gutterBottom>
-              Component Error
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Something went wrong: {error instanceof Error ? error.message : 'Unknown error'}
-            </Typography>
+            <Typography variant="h6" color="error" gutterBottom>Error loading OT records</Typography>
+            <Typography variant="body2" color="text.secondary">{error}</Typography>
+            <Button variant="contained" sx={{ mt: 2 }} onClick={() => fetchMyOtRecords()}>Retry</Button>
           </CardContent>
         </Card>
       </Box>
     );
   }
+
+  const totalRecords = myOtRecords.length;
+  const pendingRecords = myOtRecords.filter(r => r.status === OtStatus.PENDING).length;
+  const totalHours = myOtRecords
+    .filter(r => r.status === OtStatus.APPROVED)
+    .reduce((sum, r) => sum + Number(r.duration || 0), 0);
+  const currentMonthHours = myOtRecords
+    .filter(r => r.status === OtStatus.APPROVED && dayjs(r.date).isSame(dayjs(), 'month'))
+    .reduce((sum, r) => sum + Number(r.duration || 0), 0);
+
+  const statCards = [
+    { label: 'TOTAL REQUESTS', value: totalRecords, icon: <Assignment sx={{ fontSize: 18, color: '#6366F1' }} />, iconBg: '#EEF2FF' },
+    { label: 'PENDING', value: pendingRecords, icon: <HourglassEmpty sx={{ fontSize: 18, color: '#F59E0B' }} />, iconBg: '#FFFBEB' },
+    { label: 'APPROVED HOURS', value: `${Math.round(totalHours)}h`, icon: <CheckCircleOutline sx={{ fontSize: 18, color: '#10B981' }} />, iconBg: '#ECFDF5' },
+    { label: 'THIS MONTH', value: `${Math.round(currentMonthHours)}h`, icon: <CalendarMonth sx={{ fontSize: 18, color: '#3B82F6' }} />, iconBg: '#EFF6FF' },
+  ];
+
+  return (
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
+        <Box>
+          <Typography variant="h5" fontWeight={700} color="#1E293B">My OT Records</Typography>
+          <Typography variant="body2" color="text.secondary">Track and manage your overtime requests</Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => navigate('/create-ot')}
+          sx={{ borderRadius: 2 }}
+        >
+          Submit New OT Request
+        </Button>
+      </Box>
+
+      {/* Stat Cards */}
+      <Grid container spacing={2} mb={3}>
+        {statCards.map((card, idx) => (
+          <Grid item xs={6} sm={3} key={idx}>
+            <Card>
+              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ letterSpacing: '0.05em', fontSize: '0.65rem' }}>
+                    {card.label}
+                  </Typography>
+                  <Box sx={{ bgcolor: card.iconBg, borderRadius: 1.5, p: 0.5, display: 'flex' }}>
+                    {card.icon}
+                  </Box>
+                </Box>
+                <Typography variant="h4" fontWeight={700} color="#1E293B">
+                  {card.value}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* Table */}
+      <Card>
+        <CardContent sx={{ p: 0 }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" px={2.5} py={2}>
+            <Typography variant="subtitle1" fontWeight={700} color="#1E293B">
+              Recent OT Submissions
+            </Typography>
+            <Box display="flex" gap={1}>
+              <Tooltip title="Filter">
+                <IconButton size="small" sx={{ color: '#6B7280' }}>
+                  <FilterList fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Export">
+                <IconButton size="small" sx={{ color: '#6B7280' }}>
+                  <FileDownload fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          </Box>
+
+          {myOtRecords.length === 0 ? (
+            <Box textAlign="center" py={6}>
+              <AccessTime sx={{ fontSize: 48, color: '#D1D5DB', mb: 1.5 }} />
+              <Typography variant="h6" color="text.secondary" gutterBottom>No OT records found</Typography>
+              <Typography variant="body2" color="text.secondary" mb={2.5}>
+                You haven't submitted any overtime requests yet.
+              </Typography>
+              <Button variant="contained" startIcon={<Add />} onClick={() => navigate('/create-ot')}>
+                Submit Your First OT Request
+              </Button>
+            </Box>
+          ) : (
+            <>
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Date</TableCell>
+                      <TableCell>Time Period</TableCell>
+                      <TableCell>Duration</TableCell>
+                      <TableCell>Reason</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Submitted</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {myOtRecords.map((record) => (
+                      <TableRow key={record.id} sx={{ '&:hover': { bgcolor: '#F8FAFC' } }}>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={600} color="#1E293B">
+                            {dayjs(record.date).format('MMM DD, YYYY')}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="#475569">
+                            {record.startTime} - {record.endTime}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={600} color="#1E293B">
+                            {formatDuration(Number(record.duration || 0))}
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ maxWidth: 260 }}>
+                          <Typography
+                            variant="body2"
+                            color="#475569"
+                            sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                            title={record.reason}
+                          >
+                            {record.reason}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>{getStatusChip(record.status)}</TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="#6B7280">
+                            {dayjs(record.createdAt).format('MMM DD, YYYY')}
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <Box px={2.5} py={1.5} display="flex" justifyContent="space-between" alignItems="center" borderTop="1px solid #F1F5F9">
+                <Typography variant="caption" color="text.secondary">
+                  Showing 1 to {myOtRecords.length} of {myOtRecords.length} records
+                </Typography>
+                <Box display="flex" gap={1}>
+                  <Button size="small" disabled sx={{ color: '#9CA3AF', fontSize: '0.75rem' }}>Previous</Button>
+                  <Button size="small" disabled sx={{ color: '#9CA3AF', fontSize: '0.75rem' }}>Next</Button>
+                </Box>
+              </Box>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </Box>
+  );
 };

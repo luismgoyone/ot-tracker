@@ -1,45 +1,39 @@
 import React, { useState } from 'react';
 import {
   Box,
-  Card,
-  CardContent,
   TextField,
   Button,
   Typography,
   Alert,
-  Container,
-  Paper,
   InputAdornment,
   IconButton,
+  Checkbox,
+  FormControlLabel,
+  Paper,
 } from '@mui/material';
-import { Email, Lock, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Email, Lock, Visibility, VisibilityOff, AccessTime, Info } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
   const { login, isLoading } = useAuthStore();
-  
-  const [credentials, setCredentials] = useState({
-    email: '',
-    password: '',
-  });
+
+  const [credentials, setCredentials] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
     if (!credentials.email || !credentials.password) {
       setError('Please fill in all fields');
       return;
     }
-
     try {
       await login(credentials);
       navigate('/dashboard');
-    } catch (error) {
+    } catch {
       setError('Invalid email or password');
     }
   };
@@ -50,97 +44,178 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="sm" sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center' }}>
-      <Paper elevation={3} sx={{ width: '100%', p: 4 }}>
-        <Box textAlign="center" mb={4}>
-          <Typography variant="h4" fontWeight="bold" color="primary" gutterBottom>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 50%, #DDD6FE 100%)',
+        p: 2,
+      }}
+    >
+      <Paper
+        elevation={0}
+        sx={{
+          width: '100%',
+          maxWidth: 420,
+          p: 4,
+          borderRadius: 3,
+          boxShadow: '0 8px 40px rgba(99,102,241,0.12)',
+          border: '1px solid rgba(99,102,241,0.1)',
+        }}
+      >
+        {/* Logo + Title */}
+        <Box textAlign="center" mb={3.5}>
+          <Box
+            sx={{
+              width: 52,
+              height: 52,
+              bgcolor: '#6366F1',
+              borderRadius: 2.5,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mb: 1.5,
+            }}
+          >
+            <AccessTime sx={{ color: '#fff', fontSize: 26 }} />
+          </Box>
+          <Typography variant="h5" fontWeight={700} color="#1E293B">
             OT Tracker
           </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Sign in to manage your overtime records
+          <Typography variant="body2" color="text.secondary" mt={0.5}>
+            Manage your overtime effortlessly
           </Typography>
         </Box>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
+          <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2 }}>
             {error}
           </Alert>
         )}
 
         <form onSubmit={handleSubmit}>
-          <Box mb={3}>
+          {/* Email */}
+          <Box mb={2}>
+            <Typography variant="body2" fontWeight={500} color="#374151" mb={0.75}>
+              Email Address
+            </Typography>
             <TextField
               fullWidth
-              label="Email Address"
+              placeholder="admin@ottracker.com"
               type="email"
               value={credentials.email}
               onChange={handleChange('email')}
               disabled={isLoading}
+              size="small"
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Email />
+                    <Email sx={{ fontSize: 18, color: '#9CA3AF' }} />
                   </InputAdornment>
                 ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  bgcolor: '#F9FAFB',
+                },
               }}
             />
           </Box>
 
-          <Box mb={3}>
+          {/* Password */}
+          <Box mb={2}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.75}>
+              <Typography variant="body2" fontWeight={500} color="#374151">
+                Password
+              </Typography>
+              <Typography variant="caption" color="primary" sx={{ cursor: 'pointer', fontWeight: 500 }}>
+                Forgot password?
+              </Typography>
+            </Box>
             <TextField
               fullWidth
-              label="Password"
+              placeholder="••••••••"
               type={showPassword ? 'text' : 'password'}
               value={credentials.password}
               onChange={handleChange('password')}
               disabled={isLoading}
+              size="small"
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Lock />
+                    <Lock sx={{ fontSize: 18, color: '#9CA3AF' }} />
                   </InputAdornment>
                 ),
                 endAdornment: (
                   <InputAdornment position="end">
-                    <IconButton
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    <IconButton size="small" onClick={() => setShowPassword(!showPassword)} edge="end">
+                      {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
                     </IconButton>
                   </InputAdornment>
                 ),
               }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  bgcolor: '#F9FAFB',
+                },
+              }}
             />
           </Box>
+
+          <FormControlLabel
+            control={<Checkbox size="small" sx={{ color: '#D1D5DB' }} />}
+            label={<Typography variant="body2" color="#6B7280">Keep me signed in</Typography>}
+            sx={{ mb: 2.5 }}
+          />
 
           <Button
             type="submit"
             fullWidth
             variant="contained"
-            size="large"
             disabled={isLoading}
-            sx={{ mb: 3 }}
+            endIcon={!isLoading && '→'}
+            sx={{
+              py: 1.25,
+              borderRadius: 2,
+              fontSize: '0.95rem',
+              bgcolor: '#6366F1',
+              '&:hover': { bgcolor: '#4F46E5' },
+            }}
           >
-            {isLoading ? 'Signing In...' : 'Sign In'}
+            {isLoading ? 'Signing In...' : 'Sign in'}
           </Button>
         </form>
 
         {/* Demo Credentials */}
-        <Card sx={{ bgcolor: 'grey.50', mt: 3 }}>
-          <CardContent>
-            <Typography variant="subtitle2" gutterBottom color="primary">
-              Demo Credentials
+        <Box
+          sx={{
+            mt: 3,
+            p: 2,
+            bgcolor: '#EFF6FF',
+            borderRadius: 2,
+            border: '1px solid #BFDBFE',
+          }}
+        >
+          <Box display="flex" alignItems="center" gap={0.75} mb={1}>
+            <Info sx={{ fontSize: 14, color: '#3B82F6' }} />
+            <Typography variant="caption" fontWeight={700} color="#1D4ED8" letterSpacing="0.05em">
+              DEMO CREDENTIALS
             </Typography>
-            <Typography variant="body2" gutterBottom>
-              <strong>Supervisor:</strong> supervisor@company.com / password123
-            </Typography>
-            <Typography variant="body2">
-              <strong>Employee:</strong> employee@company.com / password123
-            </Typography>
-          </CardContent>
-        </Card>
+          </Box>
+          <Box display="flex" justifyContent="space-between">
+            <Typography variant="caption" color="#374151">Email:</Typography>
+            <Typography variant="caption" color="#374151" fontWeight={500}>admin@ottracker.com</Typography>
+          </Box>
+          <Box display="flex" justifyContent="space-between">
+            <Typography variant="caption" color="#374151">Password:</Typography>
+            <Typography variant="caption" color="#374151" fontWeight={500}>password123</Typography>
+          </Box>
+        </Box>
       </Paper>
-    </Container>
+    </Box>
   );
 };

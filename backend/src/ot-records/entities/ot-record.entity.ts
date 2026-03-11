@@ -34,7 +34,7 @@ export class OtRecord {
   reason!: string;
 
   @Column({
-    type: 'enum',
+    type: 'varchar',
     enum: OtStatus,
     default: OtStatus.PENDING,
   })

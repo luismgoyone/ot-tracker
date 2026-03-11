@@ -26,6 +26,7 @@ services:
       DATABASE_USER: postgres
       DATABASE_PASSWORD: password
       JWT_SECRET: your-jwt-secret-key
+      PORT: 3000
     depends_on:
       - postgres
 
