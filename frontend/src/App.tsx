@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline } from '@mui/material';
+import { CssBaseline, Box } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 
@@ -8,7 +8,8 @@ import { useAuthStore } from './stores/authStore';
 import { UserRole } from './types';
 
 // Components
-import { Navbar } from './components/Navbar';
+import { Sidebar } from './components/Sidebar';
+import { TopBar } from './components/TopBar';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 // Pages
@@ -21,11 +22,21 @@ import { CreateOtRecord } from './pages/CreateOtRecord';
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#1976d2',
+      main: '#6366F1',
+      light: '#818CF8',
+      dark: '#4F46E5',
     },
     secondary: {
-      main: '#dc004e',
+      main: '#8B5CF6',
     },
+    background: {
+      default: '#F8FAFC',
+      paper: '#FFFFFF',
+    },
+    success: { main: '#10B981' },
+    warning: { main: '#F59E0B' },
+    error: { main: '#EF4444' },
+    info: { main: '#3B82F6' },
   },
   typography: {
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
@@ -35,7 +46,8 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 12,
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+          border: '1px solid #E2E8F0',
         },
       },
     },
@@ -45,11 +57,45 @@ const theme = createTheme({
           borderRadius: 8,
           textTransform: 'none',
           fontWeight: 600,
+          fontSize: '0.875rem',
+        },
+        contained: {
+          boxShadow: 'none',
+          '&:hover': { boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)' },
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: { borderRadius: 6, fontWeight: 600, fontSize: '0.75rem' },
+      },
+    },
+    MuiTableHead: {
+      styleOverrides: {
+        root: {
+          '& .MuiTableCell-root': {
+            fontWeight: 600,
+            fontSize: '0.72rem',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            color: '#94A3B8',
+            backgroundColor: '#F8FAFC',
+            borderBottom: '1px solid #E2E8F0',
+          },
+        },
+      },
+    },
+    MuiTableRow: {
+      styleOverrides: {
+        root: {
+          '&:last-child .MuiTableCell-root': { borderBottom: 0 },
         },
       },
     },
   },
 });
+
+const SIDEBAR_WIDTH = 240;
 
 function App() {
   const { isAuthenticated, user } = useAuthStore();
@@ -59,84 +105,98 @@ function App() {
       <CssBaseline />
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <Router>
-          {isAuthenticated && <Navbar />}
-          <Routes>
-            {/* Public Route */}
-            <Route
-              path="/login"
-              element={
-                isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />
-              }
-            />
+          {isAuthenticated ? (
+            <Box sx={{ display: 'flex', bgcolor: 'background.default', minHeight: '100vh' }}>
+              <TopBar />
+              <Sidebar width={SIDEBAR_WIDTH} />
 
-            {/* Protected Routes */}
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  {user?.role === UserRole.SUPERVISOR ? (
-                    <SupervisorDashboard />
-                  ) : (
-                    <Navigate to="/my-ot" replace />
-                  )}
-                </ProtectedRoute>
-              }
-            />
+              {/* Main content — mt accounts for fixed TopBar height */}
+              <Box
+                component="main"
+                sx={{
+                  flexGrow: 1,
+                  mt: '81px',
+                  minHeight: 'calc(100vh - 90px)',
+                  overflow: 'auto',
+                }}
+              >
+                <Routes>
+                  <Route path="/login" element={<Navigate to="/dashboard" replace />} />
 
-            <Route
-              path="/ot-management"
-              element={
-                <ProtectedRoute>
-                  {user?.role === UserRole.SUPERVISOR ? (
-                    <OtRecordManagement />
-                  ) : (
-                    <Navigate to="/my-ot" replace />
-                  )}
-                </ProtectedRoute>
-              }
-            />
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <ProtectedRoute>
+                        {user?.role === UserRole.SUPERVISOR ? (
+                          <SupervisorDashboard />
+                        ) : (
+                          <Navigate to="/my-ot" replace />
+                        )}
+                      </ProtectedRoute>
+                    }
+                  />
 
-            <Route
-              path="/my-ot"
-              element={
-                <ProtectedRoute>
-                  <MyOtRecords />
-                </ProtectedRoute>
-              }
-            />
+                  <Route
+                    path="/ot-management"
+                    element={
+                      <ProtectedRoute>
+                        {user?.role === UserRole.SUPERVISOR ? (
+                          <OtRecordManagement />
+                        ) : (
+                          <Navigate to="/my-ot" replace />
+                        )}
+                      </ProtectedRoute>
+                    }
+                  />
 
-            <Route
-              path="/create-ot"
-              element={
-                <ProtectedRoute>
-                  {user?.role === UserRole.REGULAR ? (
-                    <CreateOtRecord />
-                  ) : (
-                    <Navigate to="/dashboard" replace />
-                  )}
-                </ProtectedRoute>
-              }
-            />
+                  <Route
+                    path="/my-ot"
+                    element={
+                      <ProtectedRoute>
+                        <MyOtRecords />
+                      </ProtectedRoute>
+                    }
+                  />
 
-            {/* Default Routes */}
-            <Route
-              path="/"
-              element={
-                isAuthenticated ? (
-                  user?.role === UserRole.SUPERVISOR ? (
-                    <Navigate to="/dashboard" replace />
-                  ) : (
-                    <Navigate to="/my-ot" replace />
-                  )
-                ) : (
-                  <Navigate to="/login" replace />
-                )
-              }
-            />
+                  <Route
+                    path="/create-ot"
+                    element={
+                      <ProtectedRoute>
+                        {user?.role === UserRole.REGULAR ? (
+                          <CreateOtRecord />
+                        ) : (
+                          <Navigate to="/dashboard" replace />
+                        )}
+                      </ProtectedRoute>
+                    }
+                  />
 
-            {/* Catch all route */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+                  {/* Placeholder routes for sidebar nav items */}
+                  <Route path="/employees" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="/reports" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="/settings" element={<Navigate to="/" replace />} />
+                  <Route path="/help" element={<Navigate to="/" replace />} />
+
+                  <Route
+                    path="/"
+                    element={
+                      user?.role === UserRole.SUPERVISOR ? (
+                        <Navigate to="/dashboard" replace />
+                      ) : (
+                        <Navigate to="/my-ot" replace />
+                      )
+                    }
+                  />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Box>
+            </Box>
+          ) : (
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="*" element={<Navigate to="/login" replace />} />
+            </Routes>
+          )}
         </Router>
       </LocalizationProvider>
     </ThemeProvider>

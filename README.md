@@ -62,7 +62,9 @@ cd ot-tracker
 cp .env.example .env
 ```
 
-3. Start the application:
+3. **Make sure Docker Desktop is open and running** (check for the whale icon in your taskbar) before continuing.
+
+4. Start the application:
 ```bash
 docker-compose up -d
 ```

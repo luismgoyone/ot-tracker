@@ -70,22 +70,26 @@ export class AnalyticsService {
     }));
   }
 
-  async getMonthlyOtStats(year: number = new Date().getFullYear()) {
-    const result = await this.otRecordsRepository
-      .createQueryBuilder('otRecord')
-      .select('EXTRACT(MONTH FROM otRecord.date)', 'month')
-      .addSelect('COUNT(otRecord.id)', 'count')
-      .addSelect('SUM(otRecord.duration)', 'totalHours')
-      .where('EXTRACT(YEAR FROM otRecord.date) = :year', { year })
-      .andWhere('otRecord.status = :status', { status: 'approved' })
-      .groupBy('EXTRACT(MONTH FROM otRecord.date)')
-      .orderBy('month', 'ASC')
-      .getRawMany();
+  async getMonthlyOtStats(_year?: number) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 6);
+    const sixMonthsAgo = d.toISOString().split('T')[0];
 
-    return result.map(item => ({
-      month: parseInt(item.month),
-      count: parseInt(item.count),
-      totalHours: parseFloat(item.totalHours) || 0,
+    const result = await this.otRecordsRepository.query(
+      `SELECT EXTRACT(MONTH FROM date)::int AS month,
+              COUNT(id)::int AS count,
+              COALESCE(SUM(duration), 0)::float AS "totalHours"
+       FROM ot_records
+       WHERE date >= $1 AND status = 'approved'
+       GROUP BY EXTRACT(MONTH FROM date)
+       ORDER BY month ASC`,
+      [sixMonthsAgo],
+    );
+
+    return result.map((item: { month: number; count: number; totalHours: number }) => ({
+      month: item.month,
+      count: item.count,
+      totalHours: item.totalHours,
     }));
   }
 
@@ -114,21 +118,25 @@ export class AnalyticsService {
   }
 
   async getOtTrends(days: number = 30) {
-    const result = await this.otRecordsRepository
-      .createQueryBuilder('otRecord')
-      .select('DATE(otRecord.date)', 'date')
-      .addSelect('COUNT(otRecord.id)', 'count')
-      .addSelect('SUM(otRecord.duration)', 'totalHours')
-      .where('otRecord.date >= CURRENT_DATE - INTERVAL :days DAY', { days })
-      .andWhere('otRecord.status = :status', { status: 'approved' })
-      .groupBy('DATE(otRecord.date)')
-      .orderBy('date', 'ASC')
-      .getRawMany();
+    const d = new Date();
+    d.setDate(d.getDate() - days);
+    const cutoff = d.toISOString().split('T')[0];
 
-    return result.map(item => ({
+    const result = await this.otRecordsRepository.query(
+      `SELECT date::text AS date,
+              COUNT(id)::int AS count,
+              COALESCE(SUM(duration), 0)::float AS "totalHours"
+       FROM ot_records
+       WHERE date >= $1
+       GROUP BY date
+       ORDER BY date ASC`,
+      [cutoff],
+    );
+
+    return result.map((item: { date: string; count: number; totalHours: number }) => ({
       date: item.date,
-      count: parseInt(item.count),
-      totalHours: parseFloat(item.totalHours) || 0,
+      count: item.count,
+      totalHours: item.totalHours,
     }));
   }
 }
