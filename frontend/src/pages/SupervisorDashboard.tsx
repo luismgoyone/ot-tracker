@@ -85,7 +85,7 @@ export const SupervisorDashboard: React.FC = () => {
   const totalDeptHours = departmentData.reduce((sum, d) => sum + d.value, 0);
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
       {/* Stat Cards */}
       <Box mb={3}>
         <DashboardStats />

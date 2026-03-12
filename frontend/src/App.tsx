@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { CssBaseline, Box } from '@mui/material';
@@ -10,6 +11,7 @@ import { UserRole } from './types';
 // Components
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
+import { BottomNav } from './components/BottomNav';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 // Pages
@@ -99,6 +101,12 @@ const SIDEBAR_WIDTH = 240;
 
 function App() {
   const { isAuthenticated, user } = useAuthStore();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Always close the sidebar when auth state changes (login/logout)
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [isAuthenticated]);
 
   return (
     <ThemeProvider theme={theme}>
@@ -107,10 +115,14 @@ function App() {
         <Router>
           {isAuthenticated ? (
             <Box sx={{ display: 'flex', bgcolor: 'background.default', minHeight: '100vh' }}>
-              <TopBar />
-              <Sidebar width={SIDEBAR_WIDTH} />
+              <TopBar onMenuToggle={() => setMobileOpen((prev) => !prev)} />
+              <Sidebar
+                width={SIDEBAR_WIDTH}
+                mobileOpen={mobileOpen}
+                onMobileClose={() => setMobileOpen(false)}
+              />
 
-              {/* Main content — mt accounts for fixed TopBar height */}
+              {/* Main content */}
               <Box
                 component="main"
                 sx={{
@@ -118,6 +130,10 @@ function App() {
                   mt: '81px',
                   minHeight: 'calc(100vh - 90px)',
                   overflow: 'auto',
+                  // On mobile, add bottom padding for the bottom nav bar
+                  pb: { xs: '56px', md: 0 },
+                  // Prevent content overflow on mobile
+                  minWidth: 0,
                 }}
               >
                 <Routes>
@@ -190,6 +206,9 @@ function App() {
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </Box>
+
+              {/* Mobile bottom navigation */}
+              <BottomNav />
             </Box>
           ) : (
             <Routes>

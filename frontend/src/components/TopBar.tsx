@@ -9,7 +9,7 @@ import {
   IconButton,
   Button,
 } from '@mui/material';
-import { Search, NotificationsOutlined, Add } from '@mui/icons-material';
+import { Search, NotificationsOutlined, Add, Menu as MenuIcon } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { UserRole } from '../types';
@@ -17,7 +17,6 @@ import { UserRole } from '../types';
 const SIDEBAR_WIDTH = 240;
 const TOPBAR_HEIGHT = 64;
 
-// Pages that show a title + subtitle on the left of the TopBar
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   '/dashboard': {
     title: 'Supervisor Dashboard',
@@ -31,9 +30,17 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
     title: 'Submit OT Request',
     subtitle: 'Log your extra hours for project deadlines.',
   },
+  '/ot-management': {
+    title: 'OT Management',
+    subtitle: 'Review and manage overtime submissions.',
+  },
 };
 
-export const TopBar: React.FC = () => {
+interface TopBarProps {
+  onMenuToggle: () => void;
+}
+
+export const TopBar: React.FC<TopBarProps> = ({ onMenuToggle }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -46,8 +53,9 @@ export const TopBar: React.FC = () => {
       position="fixed"
       elevation={0}
       sx={{
-        left: SIDEBAR_WIDTH,
-        width: `calc(100% - ${SIDEBAR_WIDTH}px)`,
+        // Desktop: offset by sidebar width
+        left: { xs: 0, md: SIDEBAR_WIDTH },
+        width: { xs: '100%', md: `calc(100% - ${SIDEBAR_WIDTH}px)` },
         top: 0,
         bgcolor: '#FFFFFF',
         borderBottom: '1px solid #E2E8F0',
@@ -55,14 +63,34 @@ export const TopBar: React.FC = () => {
         zIndex: (theme) => theme.zIndex.drawer - 1,
       }}
     >
-      <Toolbar sx={{ px: 3, minHeight: `${TOPBAR_HEIGHT}px !important` }}>
-        {/* Page title (left) — only shown on pages that have meta */}
+      <Toolbar sx={{ px: { xs: 2, md: 3 }, minHeight: `${TOPBAR_HEIGHT}px !important` }}>
+        {/* Hamburger — mobile only */}
+        <IconButton
+          onClick={onMenuToggle}
+          size="small"
+          sx={{ mr: 1, display: { xs: 'flex', md: 'none' }, color: '#64748B' }}
+        >
+          <MenuIcon />
+        </IconButton>
+
+        {/* Page title */}
         {meta ? (
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="subtitle1" fontWeight={700} color="#1E293B" lineHeight={1.2}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography
+              variant="subtitle1"
+              fontWeight={700}
+              color="#1E293B"
+              lineHeight={1.2}
+              noWrap
+            >
               {meta.title}
             </Typography>
-            <Typography variant="caption" color="#94A3B8" lineHeight={1}>
+            <Typography
+              variant="caption"
+              color="#94A3B8"
+              lineHeight={1}
+              sx={{ display: { xs: 'none', sm: 'block' } }}
+            >
               {meta.subtitle}
             </Typography>
           </Box>
@@ -83,6 +111,7 @@ export const TopBar: React.FC = () => {
               ),
             }}
             sx={{
+              display: { xs: 'none', sm: 'flex' },
               width: 200,
               '& .MuiOutlinedInput-root': {
                 borderRadius: 2,
@@ -95,15 +124,15 @@ export const TopBar: React.FC = () => {
           <IconButton size="small" sx={{ color: '#64748B' }}>
             <NotificationsOutlined fontSize="small" />
           </IconButton>
-          {/* New Entry only on dashboard */}
           {meta && isSupervisor && location.pathname === '/dashboard' && (
             <Button
               variant="contained"
               startIcon={<Add fontSize="small" />}
               onClick={() => navigate('/ot-management')}
-              sx={{ borderRadius: 2, fontSize: '0.8rem', py: 0.75 }}
+              sx={{ borderRadius: 2, fontSize: '0.8rem', py: 0.75, whiteSpace: 'nowrap' }}
             >
-              New Entry
+              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>New Entry</Box>
+              <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>New</Box>
             </Button>
           )}
           {meta && !isSupervisor && location.pathname === '/my-ot' && (
@@ -111,9 +140,10 @@ export const TopBar: React.FC = () => {
               variant="contained"
               startIcon={<Add fontSize="small" />}
               onClick={() => navigate('/create-ot')}
-              sx={{ borderRadius: 2, fontSize: '0.8rem', py: 0.75 }}
+              sx={{ borderRadius: 2, fontSize: '0.8rem', py: 0.75, whiteSpace: 'nowrap' }}
             >
-              Submit OT
+              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Submit OT</Box>
+              <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Submit</Box>
             </Button>
           )}
         </Box>

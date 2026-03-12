@@ -24,6 +24,7 @@ import {
   InputAdornment,
   TextField,
   Avatar,
+  Divider,
 } from '@mui/material';
 import {
   CheckCircle,
@@ -188,21 +189,22 @@ export const OtRecordManagement: React.FC = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
       {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
         <Box>
           <Typography variant="h5" fontWeight={700} color="#1E293B">OT Management</Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
             Review and manage overtime submissions across your departments.
           </Typography>
         </Box>
         <Box display="flex" gap={1.5}>
-          <Button variant="outlined" startIcon={<FilterList />} sx={{ borderRadius: 2 }}>
+          <Button variant="outlined" startIcon={<FilterList />} sx={{ borderRadius: 2, display: { xs: 'none', sm: 'flex' } }}>
             Filter
           </Button>
           <Button variant="contained" startIcon={<FileDownload />} sx={{ borderRadius: 2 }}>
-            Export CSV
+            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Export CSV</Box>
+            <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Export</Box>
           </Button>
         </Box>
       </Box>
@@ -246,107 +248,194 @@ export const OtRecordManagement: React.FC = () => {
         </Box>
 
         <CardContent sx={{ p: 0 }}>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Employee</TableCell>
-                  <TableCell>Department</TableCell>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Duration</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Reason</TableCell>
-                  <TableCell align="center">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filtered.map((record, index) => (
-                  <TableRow key={record.id} sx={{ '&:hover': { bgcolor: '#F8FAFC' } }}>
-                    <TableCell>
-                      <Box display="flex" alignItems="center" gap={1.5}>
-                        <Avatar
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            fontSize: '0.7rem',
-                            fontWeight: 700,
-                            bgcolor: AVATAR_COLORS[index % AVATAR_COLORS.length],
-                          }}
-                        >
-                          {getInitials(record.user?.firstName, record.user?.lastName)}
-                        </Avatar>
+          {/* Desktop table */}
+          <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Employee</TableCell>
+                    <TableCell>Department</TableCell>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Duration</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Reason</TableCell>
+                    <TableCell align="center">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filtered.map((record, index) => (
+                    <TableRow key={record.id} sx={{ '&:hover': { bgcolor: '#F8FAFC' } }}>
+                      <TableCell>
+                        <Box display="flex" alignItems="center" gap={1.5}>
+                          <Avatar
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              bgcolor: AVATAR_COLORS[index % AVATAR_COLORS.length],
+                            }}
+                          >
+                            {getInitials(record.user?.firstName, record.user?.lastName)}
+                          </Avatar>
+                          <Typography variant="body2" fontWeight={600} color="#1E293B">
+                            {record.user?.firstName} {record.user?.lastName}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="#475569">{record.user?.department?.name}</Typography>
+                      </TableCell>
+                      <TableCell>
                         <Typography variant="body2" fontWeight={600} color="#1E293B">
+                          {dayjs(record.date).format('MMM DD, YYYY')}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={600} color="#1E293B">
+                          {formatDuration(Number(record.duration))}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>{getStatusChip(record.status)}</TableCell>
+                      <TableCell sx={{ maxWidth: 180 }}>
+                        <Typography
+                          variant="body2"
+                          color="#475569"
+                          sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                          title={record.reason}
+                        >
+                          {record.reason}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Box display="flex" justifyContent="center" gap={0.5}>
+                          <Tooltip title="View Details">
+                            <IconButton size="small" onClick={() => handleViewDetails(record)} sx={{ color: '#6B7280' }}>
+                              <Visibility fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          {record.status === OtStatus.PENDING && (
+                            <>
+                              <Tooltip title="Approve">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleApprove(record.id)}
+                                  sx={{ color: '#10B981', '&:hover': { bgcolor: '#ECFDF5' } }}
+                                >
+                                  <CheckCircle fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Reject">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleReject(record.id)}
+                                  sx={{ color: '#EF4444', '&:hover': { bgcolor: '#FEF2F2' } }}
+                                >
+                                  <Cancel fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </>
+                          )}
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {filtered.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center" sx={{ py: 5 }}>
+                        <Typography variant="body2" color="text.secondary">No records found</Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
+
+          {/* Mobile card list */}
+          <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+            {filtered.length === 0 ? (
+              <Box textAlign="center" py={5}>
+                <Typography variant="body2" color="text.secondary">No records found</Typography>
+              </Box>
+            ) : (
+              filtered.map((record, index) => (
+                <React.Fragment key={record.id}>
+                  {index > 0 && <Divider />}
+                  <Box sx={{ px: 2, py: 1.5 }}>
+                    {/* Top row: avatar + name + status */}
+                    <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                      <Avatar
+                        sx={{
+                          width: 36,
+                          height: 36,
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          bgcolor: AVATAR_COLORS[index % AVATAR_COLORS.length],
+                          flexShrink: 0,
+                        }}
+                      >
+                        {getInitials(record.user?.firstName, record.user?.lastName)}
+                      </Avatar>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="body2" fontWeight={700} color="#1E293B" noWrap>
                           {record.user?.firstName} {record.user?.lastName}
                         </Typography>
+                        <Typography variant="caption" color="#94A3B8" noWrap>
+                          {record.user?.department?.name} · {dayjs(record.date).format('MMM DD, YYYY')}
+                        </Typography>
                       </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="#475569">{record.user?.department?.name}</Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={600} color="#1E293B">
-                        {dayjs(record.date).format('MMM DD, YYYY')}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={600} color="#1E293B">
-                        {formatDuration(Number(record.duration))}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>{getStatusChip(record.status)}</TableCell>
-                    <TableCell sx={{ maxWidth: 180 }}>
-                      <Typography
-                        variant="body2"
-                        color="#475569"
-                        sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                        title={record.reason}
-                      >
-                        {record.reason}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="center">
-                      <Box display="flex" justifyContent="center" gap={0.5}>
-                        <Tooltip title="View Details">
-                          <IconButton size="small" onClick={() => handleViewDetails(record)} sx={{ color: '#6B7280' }}>
-                            <Visibility fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        {record.status === OtStatus.PENDING && (
-                          <>
-                            <Tooltip title="Approve">
-                              <IconButton
-                                size="small"
-                                onClick={() => handleApprove(record.id)}
-                                sx={{ color: '#10B981', '&:hover': { bgcolor: '#ECFDF5' } }}
-                              >
-                                <CheckCircle fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Reject">
-                              <IconButton
-                                size="small"
-                                onClick={() => handleReject(record.id)}
-                                sx={{ color: '#EF4444', '&:hover': { bgcolor: '#FEF2F2' } }}
-                              >
-                                <Cancel fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </>
-                        )}
+                      <Box sx={{ flexShrink: 0, textAlign: 'right' }}>
+                        {getStatusChip(record.status)}
+                        <Typography variant="caption" display="block" fontWeight={700} color="#1E293B" mt={0.25}>
+                          {formatDuration(Number(record.duration))}
+                        </Typography>
                       </Box>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {filtered.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 5 }}>
-                      <Typography variant="body2" color="text.secondary">No records found</Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                    </Box>
+
+                    {/* Action buttons for pending */}
+                    {record.status === OtStatus.PENDING && (
+                      <Box display="flex" gap={1} justifyContent="flex-end">
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          startIcon={<Cancel fontSize="small" />}
+                          onClick={() => handleReject(record.id)}
+                          sx={{ borderRadius: 2, fontSize: '0.75rem', py: 0.4 }}
+                        >
+                          Reject
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          startIcon={<CheckCircle fontSize="small" />}
+                          onClick={() => handleApprove(record.id)}
+                          sx={{ borderRadius: 2, fontSize: '0.75rem', py: 0.4, bgcolor: '#10B981', '&:hover': { bgcolor: '#059669' } }}
+                        >
+                          Approve
+                        </Button>
+                      </Box>
+                    )}
+                    {record.status !== OtStatus.PENDING && (
+                      <Box display="flex" justifyContent="flex-end">
+                        <Button
+                          size="small"
+                          startIcon={<Visibility fontSize="small" />}
+                          onClick={() => handleViewDetails(record)}
+                          sx={{ borderRadius: 2, fontSize: '0.75rem', color: '#6B7280' }}
+                        >
+                          View
+                        </Button>
+                      </Box>
+                    )}
+                  </Box>
+                </React.Fragment>
+              ))
+            )}
+          </Box>
+
           <Box px={2.5} py={1.5} display="flex" justifyContent="space-between" alignItems="center" borderTop="1px solid #F1F5F9">
             <Typography variant="caption" color="text.secondary">
               Showing {filtered.length} of {otRecords.length} records

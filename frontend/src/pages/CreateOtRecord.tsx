@@ -115,7 +115,7 @@ export const CreateOtRecord: React.FC = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
       {/* Header */}
       <Box mb={3}>
         <Typography variant="h5" fontWeight={700} color="#1E293B">Submit Overtime Request</Typography>

@@ -10,6 +10,8 @@ import {
   ListItemText,
   Avatar,
   Button,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -28,6 +30,8 @@ import { UserRole } from '../types';
 
 interface SidebarProps {
   width: number;
+  mobileOpen: boolean;
+  onMobileClose: () => void;
 }
 
 interface NavItem {
@@ -44,10 +48,12 @@ interface NavSection {
 const getInitials = (firstName: string, lastName: string) =>
   `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 
-export const Sidebar: React.FC<SidebarProps> = ({ width }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ width, mobileOpen, onMobileClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuthStore();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   if (!user) return null;
 
@@ -90,25 +96,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ width }) => {
     navigate('/login');
   };
 
-  return (
-    <Drawer
-      variant="permanent"
-      sx={{
-        width,
-        flexShrink: 0,
-        '& .MuiDrawer-paper': {
-          width,
-          boxSizing: 'border-box',
-          bgcolor: '#FFFFFF',
-          color: '#374151',
-          borderRight: '1px solid #E2E8F0',
-          display: 'flex',
-          flexDirection: 'column',
-          top: 0,
-          height: '100%',
-        },
-      }}
-    >
+  const handleNavClick = (path: string) => {
+    navigate(path);
+    onMobileClose();
+  };
+
+  const drawerContent = (
+    <>
       {/* Logo */}
       <Box sx={{ px: 2.5, py: 2.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <Box
@@ -137,14 +131,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ width }) => {
 
       {/* Navigation */}
       <Box sx={{ flex: 1, overflowY: 'auto', py: 1.5 }}>
-        {navSections.map((section, idx) => (
-          <Box key={idx} sx={{ mb: 0.5 }}>
+        {navSections.map((section) => (
+          <Box key={section.section ?? 'main'} sx={{ mb: 0.5 }}>
             {section.section && (
               <Typography
                 variant="caption"
                 sx={{
                   px: 2.5,
-                  pt: idx > 0 ? 1.5 : 0.5,
+                  pt: 1.5,
                   pb: 0.5,
                   display: 'block',
                   color: '#94A3B8',
@@ -162,7 +156,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ width }) => {
                 return (
                   <ListItem key={item.label} disablePadding sx={{ px: 1.5, py: 0.2 }}>
                     <ListItemButton
-                      onClick={() => navigate(item.path)}
+                      onClick={() => handleNavClick(item.path)}
                       sx={{
                         borderRadius: 2,
                         py: 0.85,
@@ -241,6 +235,44 @@ export const Sidebar: React.FC<SidebarProps> = ({ width }) => {
           Sign Out
         </Button>
       </Box>
+    </>
+  );
+
+  const drawerPaperSx = {
+    width,
+    boxSizing: 'border-box' as const,
+    bgcolor: '#FFFFFF',
+    color: '#374151',
+    borderRight: '1px solid #E2E8F0',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    top: 0,
+    height: '100%',
+  };
+
+  if (isMobile) {
+    return (
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={onMobileClose}
+        sx={{ '& .MuiDrawer-paper': drawerPaperSx }}
+      >
+        {drawerContent}
+      </Drawer>
+    );
+  }
+
+  return (
+    <Drawer
+      variant="permanent"
+      sx={{
+        width,
+        flexShrink: 0,
+        '& .MuiDrawer-paper': drawerPaperSx,
+      }}
+    >
+      {drawerContent}
     </Drawer>
   );
 };
