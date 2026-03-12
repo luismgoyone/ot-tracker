@@ -11,7 +11,14 @@ import {
   FormControlLabel,
   Paper,
 } from '@mui/material';
-import { Email, Lock, Visibility, VisibilityOff, AccessTime, Info } from '@mui/icons-material';
+import {
+  Email,
+  Lock,
+  Visibility,
+  VisibilityOff,
+  AccessTime,
+  Info,
+} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 
@@ -38,10 +45,12 @@ export const Login: React.FC = () => {
     }
   };
 
-  const handleChange = (field: keyof typeof credentials) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCredentials(prev => ({ ...prev, [field]: e.target.value }));
-    if (error) setError('');
-  };
+  const handleChange =
+    (field: keyof typeof credentials) =>
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setCredentials((prev) => ({ ...prev, [field]: e.target.value }));
+      if (error) setError('');
+    };
 
   return (
     <Box
@@ -50,7 +59,8 @@ export const Login: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 50%, #DDD6FE 100%)',
+        background:
+          'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 50%, #DDD6FE 100%)',
         p: 2,
       }}
     >
@@ -98,12 +108,17 @@ export const Login: React.FC = () => {
         <form onSubmit={handleSubmit}>
           {/* Email */}
           <Box mb={2}>
-            <Typography variant="body2" fontWeight={500} color="#374151" mb={0.75}>
+            <Typography
+              variant="body2"
+              fontWeight={500}
+              color="#374151"
+              mb={0.75}
+            >
               Email Address
             </Typography>
             <TextField
               fullWidth
-              placeholder="admin@ottracker.com"
+              placeholder="supervisor@company.com"
               type="email"
               value={credentials.email}
               onChange={handleChange('email')}
@@ -127,11 +142,20 @@ export const Login: React.FC = () => {
 
           {/* Password */}
           <Box mb={2}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.75}>
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+              mb={0.75}
+            >
               <Typography variant="body2" fontWeight={500} color="#374151">
                 Password
               </Typography>
-              <Typography variant="caption" color="primary" sx={{ cursor: 'pointer', fontWeight: 500 }}>
+              <Typography
+                variant="caption"
+                color="primary"
+                sx={{ cursor: 'pointer', fontWeight: 500 }}
+              >
                 Forgot password?
               </Typography>
             </Box>
@@ -151,8 +175,16 @@ export const Login: React.FC = () => {
                 ),
                 endAdornment: (
                   <InputAdornment position="end">
-                    <IconButton size="small" onClick={() => setShowPassword(!showPassword)} edge="end">
-                      {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                    <IconButton
+                      size="small"
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? (
+                        <VisibilityOff fontSize="small" />
+                      ) : (
+                        <Visibility fontSize="small" />
+                      )}
                     </IconButton>
                   </InputAdornment>
                 ),
@@ -168,7 +200,11 @@ export const Login: React.FC = () => {
 
           <FormControlLabel
             control={<Checkbox size="small" sx={{ color: '#D1D5DB' }} />}
-            label={<Typography variant="body2" color="#6B7280">Keep me signed in</Typography>}
+            label={
+              <Typography variant="body2" color="#6B7280">
+                Keep me signed in
+              </Typography>
+            }
             sx={{ mb: 2.5 }}
           />
 
@@ -202,17 +238,38 @@ export const Login: React.FC = () => {
         >
           <Box display="flex" alignItems="center" gap={0.75} mb={1}>
             <Info sx={{ fontSize: 14, color: '#3B82F6' }} />
-            <Typography variant="caption" fontWeight={700} color="#1D4ED8" letterSpacing="0.05em">
+            <Typography
+              variant="caption"
+              fontWeight={700}
+              color="#1D4ED8"
+              letterSpacing="0.05em"
+            >
               DEMO CREDENTIALS
             </Typography>
           </Box>
           <Box display="flex" justifyContent="space-between">
-            <Typography variant="caption" color="#374151">Email:</Typography>
-            <Typography variant="caption" color="#374151" fontWeight={500}>admin@ottracker.com</Typography>
+            <Typography variant="caption" color="#374151">
+              Supervisor:
+            </Typography>
+            <Typography variant="caption" color="#374151" fontWeight={500}>
+              supervisor@company.com
+            </Typography>
           </Box>
           <Box display="flex" justifyContent="space-between">
-            <Typography variant="caption" color="#374151">Password:</Typography>
-            <Typography variant="caption" color="#374151" fontWeight={500}>password123</Typography>
+            <Typography variant="caption" color="#374151">
+              Employee:
+            </Typography>
+            <Typography variant="caption" color="#374151" fontWeight={500}>
+              employee@company.com
+            </Typography>
+          </Box>
+          <Box display="flex" justifyContent="space-between">
+            <Typography variant="caption" color="#374151">
+              Password:
+            </Typography>
+            <Typography variant="caption" color="#374151" fontWeight={500}>
+              password123
+            </Typography>
           </Box>
         </Box>
       </Paper>
