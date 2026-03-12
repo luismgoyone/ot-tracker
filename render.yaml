@@ -5,12 +5,19 @@ services:
     buildCommand: cd backend && npm install && npm run build
     startCommand: cd backend && npm run start:prod
     envVars:
-      - key: DATABASE_URL
-        sync: false  # You'll set this manually in Render dashboard
+      - key: DATABASE_HOST
+        sync: false
+      - key: DATABASE_PORT
+        value: 5432
+      - key: DATABASE_NAME
+        sync: false
+      - key: DATABASE_USER
+        sync: false
+      - key: DATABASE_PASSWORD
+        sync: false
       - key: JWT_SECRET
         sync: false
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 3000
-        
