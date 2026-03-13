@@ -39,6 +39,12 @@ export class User {
   @Column({ name: 'department_id' })
   departmentId!: number;
 
+  @Column({ name: 'is_active', default: true })
+  isActive!: boolean;
+
+  @Column({ name: 'must_change_password', default: false })
+  mustChangePassword!: boolean;
+
   @ManyToOne(() => Department, (department) => department.users)
   @JoinColumn({ name: 'department_id' })
   department!: Department;

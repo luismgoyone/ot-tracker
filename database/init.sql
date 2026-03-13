@@ -14,8 +14,10 @@ CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(255) NOT NULL,
     first_name VARCHAR(255) NOT NULL,
     last_name VARCHAR(255) NOT NULL,
-    role VARCHAR(50) DEFAULT 'regular' CHECK (role IN ('regular', 'supervisor')),
+    role VARCHAR(50) DEFAULT 'regular' CHECK (role IN ('regular', 'supervisor', 'admin')),
     department_id INTEGER REFERENCES departments(id),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -61,7 +63,8 @@ INSERT INTO users (email, password, first_name, last_name, role, department_id) 
 ('james.thomas@company.com', '$2a$10$E8S.pAH6wdU8DFxevY.OhOmksIm07B5ns60NFJamAabcgxPawYTUK', 'James', 'Thomas', 'regular', 2),
 ('karen.white@company.com', '$2a$10$E8S.pAH6wdU8DFxevY.OhOmksIm07B5ns60NFJamAabcgxPawYTUK', 'Karen', 'White', 'regular', 5),
 ('liam.harris@company.com', '$2a$10$E8S.pAH6wdU8DFxevY.OhOmksIm07B5ns60NFJamAabcgxPawYTUK', 'Liam', 'Harris', 'regular', 3),
-('mia.clark@company.com', '$2a$10$E8S.pAH6wdU8DFxevY.OhOmksIm07B5ns60NFJamAabcgxPawYTUK', 'Mia', 'Clark', 'regular', 4)
+('mia.clark@company.com', '$2a$10$E8S.pAH6wdU8DFxevY.OhOmksIm07B5ns60NFJamAabcgxPawYTUK', 'Mia', 'Clark', 'regular', 4),
+('admin@company.com', '$2a$10$E8S.pAH6wdU8DFxevY.OhOmksIm07B5ns60NFJamAabcgxPawYTUK', 'System', 'Admin', 'admin', 1)
 ON CONFLICT (email) DO NOTHING;
 
 -- Insert sample OT records
