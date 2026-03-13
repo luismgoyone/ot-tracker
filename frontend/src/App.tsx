@@ -20,6 +20,7 @@ import { SupervisorDashboard } from './pages/SupervisorDashboard';
 import { OtRecordManagement } from './pages/OtRecordManagement';
 import { MyOtRecords } from './pages/MyOtRecords';
 import { CreateOtRecord } from './pages/CreateOtRecord';
+import { UserManagement } from './pages/UserManagement';
 
 const theme = createTheme({
   palette: {
@@ -101,6 +102,7 @@ const SIDEBAR_WIDTH = 240;
 
 function App() {
   const { isAuthenticated, user } = useAuthStore();
+  const isSupervisorOrAdmin = user?.role === UserRole.SUPERVISOR || user?.role === UserRole.ADMIN;
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Always close the sidebar when auth state changes (login/logout)
@@ -113,7 +115,7 @@ function App() {
       <CssBaseline />
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <Router>
-          {isAuthenticated ? (
+          {isAuthenticated && !user?.mustChangePassword ? (
             <Box sx={{ display: 'flex', bgcolor: 'background.default', minHeight: '100vh' }}>
               <TopBar onMenuToggle={() => setMobileOpen((prev) => !prev)} />
               <Sidebar
@@ -143,7 +145,7 @@ function App() {
                     path="/dashboard"
                     element={
                       <ProtectedRoute>
-                        {user?.role === UserRole.SUPERVISOR ? (
+                        {isSupervisorOrAdmin ? (
                           <SupervisorDashboard />
                         ) : (
                           <Navigate to="/my-ot" replace />
@@ -156,10 +158,23 @@ function App() {
                     path="/ot-management"
                     element={
                       <ProtectedRoute>
-                        {user?.role === UserRole.SUPERVISOR ? (
+                        {isSupervisorOrAdmin ? (
                           <OtRecordManagement />
                         ) : (
                           <Navigate to="/my-ot" replace />
+                        )}
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/user-management"
+                    element={
+                      <ProtectedRoute>
+                        {user?.role === UserRole.ADMIN ? (
+                          <UserManagement />
+                        ) : (
+                          <Navigate to="/dashboard" replace />
                         )}
                       </ProtectedRoute>
                     }
@@ -187,8 +202,6 @@ function App() {
                     }
                   />
 
-                  {/* Placeholder routes for sidebar nav items */}
-                  <Route path="/employees" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/reports" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/settings" element={<Navigate to="/" replace />} />
                   <Route path="/help" element={<Navigate to="/" replace />} />
@@ -196,7 +209,7 @@ function App() {
                   <Route
                     path="/"
                     element={
-                      user?.role === UserRole.SUPERVISOR ? (
+                      isSupervisorOrAdmin ? (
                         <Navigate to="/dashboard" replace />
                       ) : (
                         <Navigate to="/my-ot" replace />

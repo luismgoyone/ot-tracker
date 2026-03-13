@@ -1,34 +1,16 @@
 import React from 'react';
 import { BottomNavigation, BottomNavigationAction, Paper } from '@mui/material';
-import {
-  Dashboard,
-  AccessTime,
-  Person,
-  ManageAccounts,
-} from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { UserRole } from '../types';
-
-const supervisorItems = [
-  { label: 'Dashboard', path: '/dashboard', icon: <Dashboard /> },
-  { label: 'Requests', path: '/ot-management', icon: <ManageAccounts /> },
-  { label: 'Profile', path: '/settings', icon: <Person /> },
-];
-
-const employeeItems = [
-  { label: 'Dashboard', path: '/my-ot', icon: <Dashboard /> },
-  { label: 'Submit OT', path: '/create-ot', icon: <AccessTime /> },
-  { label: 'Profile', path: '/settings', icon: <Person /> },
-];
+import { bottomNavByRole } from '../config/navConfig';
 
 export const BottomNav: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuthStore();
-  const isSupervisor = user?.role === UserRole.SUPERVISOR;
 
-  const items = isSupervisor ? supervisorItems : employeeItems;
+  const items = bottomNavByRole[user?.role ?? UserRole.REGULAR];
   const currentValue = items.findIndex((item) => item.path === location.pathname);
 
   return (

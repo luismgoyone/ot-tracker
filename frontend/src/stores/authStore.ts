@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User, AuthResponse } from '../types';
+import { apiClient } from '../utils/apiClient';
 
 interface AuthState {
   user: User | null;
@@ -11,6 +12,7 @@ interface AuthState {
   logout: () => void;
   setUser: (user: User) => void;
   setLoading: (loading: boolean) => void;
+  changePassword: (newPassword: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -63,6 +65,13 @@ export const useAuthStore = create<AuthState>()(
 
       setLoading: (loading) => {
         set({ isLoading: loading });
+      },
+
+      changePassword: async (newPassword: string) => {
+        await apiClient.post('/auth/change-password', { newPassword });
+        set((state) => ({
+          user: state.user ? { ...state.user, mustChangePassword: false } : null,
+        }));
       },
     }),
     {

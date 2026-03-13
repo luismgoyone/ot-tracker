@@ -13,36 +13,16 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import {
-  Dashboard as DashboardIcon,
-  ManageAccounts,
-  AccessTime,
-  Add,
-  Logout,
-  Settings,
-  HelpOutline,
-  Group,
-  BarChart,
-} from '@mui/icons-material';
+import { Logout, AccessTime } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { UserRole } from '../types';
+import { sidebarNavByRole, panelLabelByRole, NavItem } from '../config/navConfig';
 
 interface SidebarProps {
   width: number;
   mobileOpen: boolean;
   onMobileClose: () => void;
-}
-
-interface NavItem {
-  label: string;
-  path: string;
-  icon: React.ReactNode;
-}
-
-interface NavSection {
-  section?: string;
-  items: NavItem[];
 }
 
 const getInitials = (firstName: string, lastName: string) =>
@@ -57,39 +37,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ width, mobileOpen, onMobileClo
 
   if (!user) return null;
 
-  const isSupervisor = user.role === UserRole.SUPERVISOR;
-
-  const supervisorNav: NavSection[] = [
-    {
-      section: 'GENERAL',
-      items: [
-        { label: 'Dashboard', path: '/dashboard', icon: <DashboardIcon fontSize="small" /> },
-        { label: 'OT Management', path: '/ot-management', icon: <ManageAccounts fontSize="small" /> },
-        { label: 'Employees', path: '/employees', icon: <Group fontSize="small" /> },
-        { label: 'Reports', path: '/reports', icon: <BarChart fontSize="small" /> },
-      ],
-    },
-    {
-      section: 'SYSTEM',
-      items: [
-        { label: 'Settings', path: '/settings', icon: <Settings fontSize="small" /> },
-        { label: 'Help Center', path: '/help', icon: <HelpOutline fontSize="small" /> },
-      ],
-    },
-  ];
-
-  const employeeNav: NavSection[] = [
-    {
-      items: [
-        { label: 'Dashboard', path: '/my-ot', icon: <DashboardIcon fontSize="small" /> },
-        { label: 'Submit OT', path: '/create-ot', icon: <Add fontSize="small" /> },
-        { label: 'My Requests', path: '/my-ot', icon: <AccessTime fontSize="small" /> },
-        { label: 'Settings', path: '/settings', icon: <Settings fontSize="small" /> },
-      ],
-    },
-  ];
-
-  const navSections = isSupervisor ? supervisorNav : employeeNav;
+  const navSections = sidebarNavByRole[user.role ?? UserRole.REGULAR];
+  const panelLabel = panelLabelByRole[user.role ?? UserRole.REGULAR];
 
   const handleLogout = () => {
     logout();
@@ -124,7 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ width, mobileOpen, onMobileClo
             OT Tracker
           </Typography>
           <Typography variant="caption" color="#94A3B8" lineHeight={1}>
-            {isSupervisor ? 'Supervisor Panel' : 'Employee Portal'}
+            {panelLabel}
           </Typography>
         </Box>
       </Box>
@@ -151,7 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ width, mobileOpen, onMobileClo
               </Typography>
             )}
             <List dense disablePadding>
-              {section.items.map((item) => {
+              {section.items.map((item: NavItem) => {
                 const isActive = location.pathname === item.path;
                 return (
                   <ListItem key={item.label} disablePadding sx={{ px: 1.5, py: 0.2 }}>
@@ -169,12 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ width, mobileOpen, onMobileClo
                         },
                       }}
                     >
-                      <ListItemIcon
-                        sx={{
-                          minWidth: 30,
-                          color: isActive ? '#6366F1' : '#94A3B8',
-                        }}
-                      >
+                      <ListItemIcon sx={{ minWidth: 30, color: isActive ? '#6366F1' : '#94A3B8' }}>
                         {item.icon}
                       </ListItemIcon>
                       <ListItemText
@@ -266,11 +210,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ width, mobileOpen, onMobileClo
   return (
     <Drawer
       variant="permanent"
-      sx={{
-        width,
-        flexShrink: 0,
-        '& .MuiDrawer-paper': drawerPaperSx,
-      }}
+      sx={{ width, flexShrink: 0, '& .MuiDrawer-paper': drawerPaperSx }}
     >
       {drawerContent}
     </Drawer>
