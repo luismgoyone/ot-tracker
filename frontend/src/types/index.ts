@@ -1,6 +1,7 @@
 export enum UserRole {
   REGULAR = 'regular',
   SUPERVISOR = 'supervisor',
+  ADMIN = 'admin',
 }
 
 export enum OtStatus {
@@ -17,7 +18,26 @@ export interface User {
   role: UserRole;
   departmentId: number;
   department?: Department;
+  isActive?: boolean;
+  mustChangePassword?: boolean;
   createdAt: string;
+}
+
+export interface CreateUserPayload {
+  email: string;
+  temporaryPassword: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  departmentId: number;
+}
+
+export interface UpdateUserPayload {
+  firstName?: string;
+  lastName?: string;
+  role?: UserRole;
+  departmentId?: number;
+  isActive?: boolean;
 }
 
 export interface Department {

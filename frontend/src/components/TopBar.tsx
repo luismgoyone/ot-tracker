@@ -34,6 +34,10 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
     title: 'OT Management',
     subtitle: 'Review and manage overtime submissions.',
   },
+  '/user-management': {
+    title: 'User Management',
+    subtitle: 'Create and manage system users and permissions.',
+  },
 };
 
 interface TopBarProps {
@@ -45,7 +49,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuToggle }) => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
-  const isSupervisor = user?.role === UserRole.SUPERVISOR;
+  const isSupervisor = user?.role === UserRole.SUPERVISOR || user?.role === UserRole.ADMIN;
   const meta = PAGE_META[location.pathname];
 
   return (

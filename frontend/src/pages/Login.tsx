@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   TextField,
@@ -21,6 +21,8 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
+import { ResetPasswordForm } from '../components/ResetPasswordForm';
+import { UserRole } from '../types';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -29,6 +31,12 @@ export const Login: React.FC = () => {
   const [credentials, setCredentials] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [showReset, setShowReset] = useState(false);
+
+  useEffect(() => {
+    const { user } = useAuthStore.getState();
+    if (user?.mustChangePassword) setShowReset(true);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,10 +47,20 @@ export const Login: React.FC = () => {
     }
     try {
       await login(credentials);
-      navigate('/dashboard');
+      const { user } = useAuthStore.getState();
+      if (user?.mustChangePassword) {
+        setShowReset(true);
+        return;
+      }
+      navigate(user?.role === UserRole.REGULAR ? '/my-ot' : '/dashboard');
     } catch {
       setError('Invalid email or password');
     }
+  };
+
+  const handleResetSuccess = () => {
+    const { user } = useAuthStore.getState();
+    navigate(user?.role === UserRole.REGULAR ? '/my-ot' : '/dashboard');
   };
 
   const handleChange =
@@ -59,8 +77,7 @@ export const Login: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background:
-          'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 50%, #DDD6FE 100%)',
+        background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 50%, #DDD6FE 100%)',
         p: 2,
       }}
     >
@@ -75,7 +92,7 @@ export const Login: React.FC = () => {
           border: '1px solid rgba(99,102,241,0.1)',
         }}
       >
-        {/* Logo + Title */}
+        {/* Logo */}
         <Box textAlign="center" mb={3.5}>
           <Box
             sx={{
@@ -91,187 +108,136 @@ export const Login: React.FC = () => {
           >
             <AccessTime sx={{ color: '#fff', fontSize: 26 }} />
           </Box>
-          <Typography variant="h5" fontWeight={700} color="#1E293B">
-            OT Tracker
-          </Typography>
-          <Typography variant="body2" color="text.secondary" mt={0.5}>
-            Manage your overtime effortlessly
-          </Typography>
+          {!showReset && (
+            <>
+              <Typography variant="h5" fontWeight={700} color="#1E293B">
+                OT Tracker
+              </Typography>
+              <Typography variant="body2" color="text.secondary" mt={0.5}>
+                Manage your overtime effortlessly
+              </Typography>
+            </>
+          )}
         </Box>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2 }}>
-            {error}
-          </Alert>
-        )}
+        {showReset ? (
+          <ResetPasswordForm onSuccess={handleResetSuccess} />
+        ) : (
+          <>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2 }}>
+                {error}
+              </Alert>
+            )}
 
-        <form onSubmit={handleSubmit}>
-          {/* Email */}
-          <Box mb={2}>
-            <Typography
-              variant="body2"
-              fontWeight={500}
-              color="#374151"
-              mb={0.75}
-            >
-              Email Address
-            </Typography>
-            <TextField
-              fullWidth
-              placeholder="supervisor@company.com"
-              type="email"
-              value={credentials.email}
-              onChange={handleChange('email')}
-              disabled={isLoading}
-              size="small"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Email sx={{ fontSize: 18, color: '#9CA3AF' }} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
+            <form onSubmit={handleSubmit}>
+              {/* Email */}
+              <Box mb={2}>
+                <Typography variant="body2" fontWeight={500} color="#374151" mb={0.75}>
+                  Email Address
+                </Typography>
+                <TextField
+                  fullWidth
+                  placeholder="supervisor@company.com"
+                  type="email"
+                  value={credentials.email}
+                  onChange={handleChange('email')}
+                  disabled={isLoading}
+                  size="small"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Email sx={{ fontSize: 18, color: '#9CA3AF' }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: '#F9FAFB' } }}
+                />
+              </Box>
+
+              {/* Password */}
+              <Box mb={2}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.75}>
+                  <Typography variant="body2" fontWeight={500} color="#374151">
+                    Password
+                  </Typography>
+                  <Typography variant="caption" color="primary" sx={{ cursor: 'pointer', fontWeight: 500 }}>
+                    Forgot password?
+                  </Typography>
+                </Box>
+                <TextField
+                  fullWidth
+                  placeholder="••••••••"
+                  type={showPassword ? 'text' : 'password'}
+                  value={credentials.password}
+                  onChange={handleChange('password')}
+                  disabled={isLoading}
+                  size="small"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Lock sx={{ fontSize: 18, color: '#9CA3AF' }} />
+                      </InputAdornment>
+                    ),
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton size="small" onClick={() => setShowPassword(!showPassword)} edge="end">
+                          {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: '#F9FAFB' } }}
+                />
+              </Box>
+
+              <FormControlLabel
+                control={<Checkbox size="small" sx={{ color: '#D1D5DB' }} />}
+                label={<Typography variant="body2" color="#6B7280">Keep me signed in</Typography>}
+                sx={{ mb: 2.5 }}
+              />
+
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                disabled={isLoading}
+                endIcon={!isLoading && '→'}
+                sx={{
+                  py: 1.25,
                   borderRadius: 2,
-                  bgcolor: '#F9FAFB',
-                },
-              }}
-            />
-          </Box>
-
-          {/* Password */}
-          <Box mb={2}>
-            <Box
-              display="flex"
-              justifyContent="space-between"
-              alignItems="center"
-              mb={0.75}
-            >
-              <Typography variant="body2" fontWeight={500} color="#374151">
-                Password
-              </Typography>
-              <Typography
-                variant="caption"
-                color="primary"
-                sx={{ cursor: 'pointer', fontWeight: 500 }}
+                  fontSize: '0.95rem',
+                  bgcolor: '#6366F1',
+                  '&:hover': { bgcolor: '#4F46E5' },
+                }}
               >
-                Forgot password?
-              </Typography>
+                {isLoading ? 'Signing In...' : 'Sign in'}
+              </Button>
+            </form>
+
+            {/* Demo Credentials */}
+            <Box sx={{ mt: 3, p: 2, bgcolor: '#EFF6FF', borderRadius: 2, border: '1px solid #BFDBFE' }}>
+              <Box display="flex" alignItems="center" gap={0.75} mb={1}>
+                <Info sx={{ fontSize: 14, color: '#3B82F6' }} />
+                <Typography variant="caption" fontWeight={700} color="#1D4ED8" letterSpacing="0.05em">
+                  DEMO CREDENTIALS
+                </Typography>
+              </Box>
+              <Box display="flex" justifyContent="space-between">
+                <Typography variant="caption" color="#374151">Supervisor:</Typography>
+                <Typography variant="caption" color="#374151" fontWeight={500}>supervisor@company.com</Typography>
+              </Box>
+              <Box display="flex" justifyContent="space-between">
+                <Typography variant="caption" color="#374151">Employee:</Typography>
+                <Typography variant="caption" color="#374151" fontWeight={500}>employee@company.com</Typography>
+              </Box>
+              <Box display="flex" justifyContent="space-between">
+                <Typography variant="caption" color="#374151">Password:</Typography>
+                <Typography variant="caption" color="#374151" fontWeight={500}>password123</Typography>
+              </Box>
             </Box>
-            <TextField
-              fullWidth
-              placeholder="••••••••"
-              type={showPassword ? 'text' : 'password'}
-              value={credentials.password}
-              onChange={handleChange('password')}
-              disabled={isLoading}
-              size="small"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Lock sx={{ fontSize: 18, color: '#9CA3AF' }} />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      size="small"
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                    >
-                      {showPassword ? (
-                        <VisibilityOff fontSize="small" />
-                      ) : (
-                        <Visibility fontSize="small" />
-                      )}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                  bgcolor: '#F9FAFB',
-                },
-              }}
-            />
-          </Box>
-
-          <FormControlLabel
-            control={<Checkbox size="small" sx={{ color: '#D1D5DB' }} />}
-            label={
-              <Typography variant="body2" color="#6B7280">
-                Keep me signed in
-              </Typography>
-            }
-            sx={{ mb: 2.5 }}
-          />
-
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            disabled={isLoading}
-            endIcon={!isLoading && '→'}
-            sx={{
-              py: 1.25,
-              borderRadius: 2,
-              fontSize: '0.95rem',
-              bgcolor: '#6366F1',
-              '&:hover': { bgcolor: '#4F46E5' },
-            }}
-          >
-            {isLoading ? 'Signing In...' : 'Sign in'}
-          </Button>
-        </form>
-
-        {/* Demo Credentials */}
-        <Box
-          sx={{
-            mt: 3,
-            p: 2,
-            bgcolor: '#EFF6FF',
-            borderRadius: 2,
-            border: '1px solid #BFDBFE',
-          }}
-        >
-          <Box display="flex" alignItems="center" gap={0.75} mb={1}>
-            <Info sx={{ fontSize: 14, color: '#3B82F6' }} />
-            <Typography
-              variant="caption"
-              fontWeight={700}
-              color="#1D4ED8"
-              letterSpacing="0.05em"
-            >
-              DEMO CREDENTIALS
-            </Typography>
-          </Box>
-          <Box display="flex" justifyContent="space-between">
-            <Typography variant="caption" color="#374151">
-              Supervisor:
-            </Typography>
-            <Typography variant="caption" color="#374151" fontWeight={500}>
-              supervisor@company.com
-            </Typography>
-          </Box>
-          <Box display="flex" justifyContent="space-between">
-            <Typography variant="caption" color="#374151">
-              Employee:
-            </Typography>
-            <Typography variant="caption" color="#374151" fontWeight={500}>
-              employee@company.com
-            </Typography>
-          </Box>
-          <Box display="flex" justifyContent="space-between">
-            <Typography variant="caption" color="#374151">
-              Password:
-            </Typography>
-            <Typography variant="caption" color="#374151" fontWeight={500}>
-              password123
-            </Typography>
-          </Box>
-        </Box>
+          </>
+        )}
       </Paper>
     </Box>
   );
