@@ -6,6 +6,18 @@ import { CreateOtRecordDto } from './dto/create-ot-record.dto';
 import { UpdateOtRecordDto } from './dto/update-ot-record.dto';
 import { OtStatus } from '../common/enums';
 
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  meta: PaginationMeta;
+}
+
 @Injectable()
 export class OtRecordsService {
   constructor(
@@ -21,19 +33,27 @@ export class OtRecordsService {
     return this.otRecordsRepository.save(otRecord);
   }
 
-  async findAll(): Promise<OtRecord[]> {
-    return this.otRecordsRepository.find({
+  async findAll(page = 1, limit = 10, status?: OtStatus): Promise<PaginatedResult<OtRecord>> {
+    const where = status ? { status } : {};
+    const [data, total] = await this.otRecordsRepository.findAndCount({
+      where,
       relations: ['user', 'user.department'],
       order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
     });
+    return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
-  async findByUser(userId: number): Promise<OtRecord[]> {
-    return this.otRecordsRepository.find({
+  async findByUser(userId: number, page = 1, limit = 10): Promise<PaginatedResult<OtRecord>> {
+    const [data, total] = await this.otRecordsRepository.findAndCount({
       where: { userId },
       relations: ['user', 'user.department'],
       order: { date: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
     });
+    return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
   async findByDepartment(departmentId: number): Promise<OtRecord[]> {

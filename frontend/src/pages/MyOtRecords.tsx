@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   Card,
@@ -84,13 +84,16 @@ const formatDuration = (hours: number) => {
   return `${h}h ${String(m).padStart(2, '0')}m`;
 };
 
+const PAGE_SIZE = 10;
+
 export const MyOtRecords: React.FC = () => {
   const navigate = useNavigate();
-  const { myOtRecords, fetchMyOtRecords, isLoading, error } = useOtStore();
+  const { myOtRecords, myOtRecordsMeta, fetchMyOtRecords, isLoading, error } = useOtStore();
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
-    fetchMyOtRecords();
-  }, [fetchMyOtRecords]);
+    fetchMyOtRecords(page);
+  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (isLoading) {
     return (
@@ -124,7 +127,7 @@ export const MyOtRecords: React.FC = () => {
             <Button
               variant="contained"
               sx={{ mt: 2 }}
-              onClick={() => fetchMyOtRecords()}
+              onClick={() => fetchMyOtRecords(page)}
             >
               Retry
             </Button>
@@ -134,7 +137,9 @@ export const MyOtRecords: React.FC = () => {
     );
   }
 
-  const totalRecords = myOtRecords.length;
+  const { total, totalPages } = myOtRecordsMeta;
+
+  const totalRecords = total;
   const pendingRecords = myOtRecords.filter(
     (r) => r.status === OtStatus.PENDING,
   ).length;
@@ -148,6 +153,8 @@ export const MyOtRecords: React.FC = () => {
         dayjs(r.date).isSame(dayjs(), 'month'),
     )
     .reduce((sum, r) => sum + Number(r.duration || 0), 0);
+  const startRecord = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const endRecord = Math.min(page * PAGE_SIZE, total);
 
   const statCards = [
     {
@@ -453,21 +460,27 @@ export const MyOtRecords: React.FC = () => {
                 borderTop="1px solid #F1F5F9"
               >
                 <Typography variant="caption" color="text.secondary">
-                  Showing 1 to {myOtRecords.length} of {myOtRecords.length}{' '}
-                  records
+                  Showing {startRecord}–{endRecord} of {total} records
                 </Typography>
-                <Box display="flex" gap={1}>
+                <Box display="flex" gap={1} alignItems="center">
                   <Button
                     size="small"
-                    disabled
-                    sx={{ color: '#9CA3AF', fontSize: '0.75rem' }}
+                    disabled={page === 1}
+                    onClick={() => setPage(p => p - 1)}
+                    sx={{ fontSize: '0.75rem' }}
                   >
                     Previous
                   </Button>
+                  <Chip
+                    label={`${page} / ${totalPages}`}
+                    size="small"
+                    sx={{ bgcolor: '#6366F1', color: '#fff', fontWeight: 700, height: 24, fontSize: '0.7rem' }}
+                  />
                   <Button
                     size="small"
-                    disabled
-                    sx={{ color: '#9CA3AF', fontSize: '0.75rem' }}
+                    disabled={page === totalPages}
+                    onClick={() => setPage(p => p + 1)}
+                    sx={{ fontSize: '0.75rem', color: page < totalPages ? '#6366F1' : undefined }}
                   >
                     Next
                   </Button>

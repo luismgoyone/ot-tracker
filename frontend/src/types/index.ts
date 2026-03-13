@@ -96,3 +96,10 @@ export interface OtTrend {
   count: number;
   totalHours: number;
 }
+
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}

@@ -31,16 +31,25 @@ export class OtRecordsController {
   @Get()
   @UseGuards(RolesGuard)
   @Roles(UserRole.SUPERVISOR)
-  findAll(@Query('departmentId') departmentId?: string) {
+  findAll(
+    @Query('departmentId') departmentId?: string,
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+    @Query('status') status?: OtStatus,
+  ) {
     if (departmentId) {
-      return this.otRecordsService.findByDepartment(parseInt(departmentId, 10));
+      return this.otRecordsService.findByDepartment(Number.parseInt(departmentId, 10));
     }
-    return this.otRecordsService.findAll();
+    return this.otRecordsService.findAll(Number.parseInt(page, 10), Number.parseInt(limit, 10), status);
   }
 
   @Get('my-records')
-  findMyRecords(@Request() req: { user: { userId: number } }) {
-    return this.otRecordsService.findByUser(req.user.userId);
+  findMyRecords(
+    @Request() req: { user: { userId: number } },
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+  ) {
+    return this.otRecordsService.findByUser(req.user.userId, Number.parseInt(page, 10), Number.parseInt(limit, 10));
   }
 
   @Get('date-range')
