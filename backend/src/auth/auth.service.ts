@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { User } from '../users/entities/user.entity';
 
 @Injectable()
@@ -12,10 +13,12 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async validateUser(email: string, password: string): Promise<{ id: number; email: string; firstName: string; lastName: string; role: string; departmentId: number } | null> {
+  async validateUser(email: string, password: string): Promise<Omit<User, 'password' | 'fullName'> | null> {
     const user = await this.usersService.findByEmail(email);
-    if (user && await bcrypt.compare(password, user.password)) {
-      const { password, ...result } = user;
+    if (!user) return null;
+    if (!user.isActive) return null;
+    if (await bcrypt.compare(password, user.password)) {
+      const { password: _pw, ...result } = user;
       return result;
     }
     return null;
@@ -43,8 +46,13 @@ export class AuthService {
         lastName: user.lastName,
         role: user.role,
         departmentId: user.departmentId,
+        mustChangePassword: user.mustChangePassword,
       },
     };
+  }
+
+  async changePassword(userId: number, dto: ChangePasswordDto): Promise<void> {
+    await this.usersService.updatePassword(userId, dto.newPassword);
   }
 
   async validateToken(payload: { sub: number }): Promise<User | null> {

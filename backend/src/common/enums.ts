@@ -1,6 +1,7 @@
 export enum UserRole {
   REGULAR = 'regular',
   SUPERVISOR = 'supervisor',
+  ADMIN = 'admin',
 }
 
 export enum OtStatus {
