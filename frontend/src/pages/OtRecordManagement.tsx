@@ -158,35 +158,42 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ record, open, onClose, on
 
 type TabValue = 'all' | OtStatus;
 
+const PAGE_SIZE = 10;
+
 export const OtRecordManagement: React.FC = () => {
-  const { otRecords, fetchOtRecords, updateOtStatus } = useOtStore();
+  const { otRecords, otRecordsMeta, fetchOtRecords, updateOtStatus } = useOtStore();
   const [selectedRecord, setSelectedRecord] = useState<OtRecord | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabValue>('all');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
-    fetchOtRecords();
-  }, [fetchOtRecords]);
+    const status = activeTab !== 'all' ? activeTab as OtStatus : undefined;
+    fetchOtRecords(page, PAGE_SIZE, status);
+  }, [page, activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset to page 1 when tab changes
+  const handleTabChange = (_: React.SyntheticEvent, v: TabValue) => {
+    setActiveTab(v);
+    setPage(1);
+  };
 
   const handleViewDetails = (record: OtRecord) => { setSelectedRecord(record); setDetailsOpen(true); };
   const handleCloseDetails = () => { setDetailsOpen(false); setSelectedRecord(null); };
   const handleApprove = async (id: number) => { await updateOtStatus(id, OtStatus.APPROVED); handleCloseDetails(); };
   const handleReject = async (id: number) => { await updateOtStatus(id, OtStatus.REJECTED); handleCloseDetails(); };
 
+  // Search is client-side within the current page
   const filtered = otRecords.filter(r => {
-    const matchTab = activeTab === 'all' || r.status === activeTab;
-    const matchSearch = !search || [r.user?.firstName, r.user?.lastName, r.user?.department?.name, r.reason]
+    if (!search) return true;
+    return [r.user?.firstName, r.user?.lastName, r.user?.department?.name, r.reason]
       .join(' ').toLowerCase().includes(search.toLowerCase());
-    return matchTab && matchSearch;
   });
 
-  const tabCounts = {
-    all: otRecords.length,
-    [OtStatus.PENDING]: otRecords.filter(r => r.status === OtStatus.PENDING).length,
-    [OtStatus.APPROVED]: otRecords.filter(r => r.status === OtStatus.APPROVED).length,
-    [OtStatus.REJECTED]: otRecords.filter(r => r.status === OtStatus.REJECTED).length,
-  };
+  const { total, totalPages } = otRecordsMeta;
+  const startRecord = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const endRecord = Math.min(page * PAGE_SIZE, total);
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>
@@ -233,17 +240,17 @@ export const OtRecordManagement: React.FC = () => {
           />
           <Tabs
             value={activeTab}
-            onChange={(_, v) => setActiveTab(v)}
+            onChange={handleTabChange}
             sx={{
               '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: '0.875rem', minHeight: 40, py: 0 },
               '& .MuiTabs-indicator': { bgcolor: '#6366F1' },
               '& .Mui-selected': { color: '#6366F1 !important' },
             }}
           >
-            <Tab label={`All Requests (${tabCounts.all})`} value="all" />
-            <Tab label={`Pending (${tabCounts[OtStatus.PENDING]})`} value={OtStatus.PENDING} />
-            <Tab label={`Approved (${tabCounts[OtStatus.APPROVED]})`} value={OtStatus.APPROVED} />
-            <Tab label={`Rejected (${tabCounts[OtStatus.REJECTED]})`} value={OtStatus.REJECTED} />
+            <Tab label="All Requests" value="all" />
+            <Tab label="Pending" value={OtStatus.PENDING} />
+            <Tab label="Approved" value={OtStatus.APPROVED} />
+            <Tab label="Rejected" value={OtStatus.REJECTED} />
           </Tabs>
         </Box>
 
@@ -438,12 +445,12 @@ export const OtRecordManagement: React.FC = () => {
 
           <Box px={2.5} py={1.5} display="flex" justifyContent="space-between" alignItems="center" borderTop="1px solid #F1F5F9">
             <Typography variant="caption" color="text.secondary">
-              Showing {filtered.length} of {otRecords.length} records
+              Showing {startRecord}–{endRecord} of {total} records
             </Typography>
             <Box display="flex" gap={1} alignItems="center">
-              <Button size="small" disabled sx={{ fontSize: '0.75rem' }}>Previous</Button>
-              <Chip label="1" size="small" sx={{ bgcolor: '#6366F1', color: '#fff', fontWeight: 700, width: 28, height: 24 }} />
-              <Button size="small" sx={{ fontSize: '0.75rem', color: '#6366F1' }}>Next</Button>
+              <Button size="small" disabled={page === 1} onClick={() => setPage(p => p - 1)} sx={{ fontSize: '0.75rem' }}>Previous</Button>
+              <Chip label={`${page} / ${totalPages}`} size="small" sx={{ bgcolor: '#6366F1', color: '#fff', fontWeight: 700, height: 24, fontSize: '0.7rem' }} />
+              <Button size="small" disabled={page === totalPages} onClick={() => setPage(p => p + 1)} sx={{ fontSize: '0.75rem', color: page < totalPages ? '#6366F1' : undefined }}>Next</Button>
             </Box>
           </Box>
         </CardContent>
