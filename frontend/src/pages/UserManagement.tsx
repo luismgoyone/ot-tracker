@@ -36,12 +36,20 @@ import {
   PersonOff,
   PersonAdd,
   Search,
-  Add,
   CheckCircle,
 } from '@mui/icons-material';
 import { useUserManagementStore } from '../stores/userManagementStore';
 import { apiClient } from '../utils/apiClient';
-import { User, UserRole, Department, CreateUserPayload, UpdateUserPayload } from '../types';
+import { User, UserRole, Department, UpdateUserPayload } from '../types';
+import { AddUserDialog, AddUserFormData } from '../components/AddUserDialog';
+
+const EMPTY_ADD_FORM: AddUserFormData = {
+  fullName: '',
+  email: '',
+  temporaryPassword: '',
+  role: '',
+  departmentId: 0,
+};
 
 const AVATAR_COLORS = ['#6366F1', '#8B5CF6', '#EC4899', '#3B82F6', '#10B981', '#F59E0B'];
 
@@ -79,135 +87,6 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, color, bg }) => (
     </CardContent>
   </Card>
 );
-
-// ── Add User Dialog ──────────────────────────────────────────────────────────
-
-interface AddUserDialogProps {
-  open: boolean;
-  onClose: () => void;
-  departments: Department[];
-}
-
-const AddUserDialog: React.FC<AddUserDialogProps> = ({ open, onClose, departments }) => {
-  const { createUser } = useUserManagementStore();
-  const [form, setForm] = useState<CreateUserPayload>({
-    email: '',
-    temporaryPassword: '',
-    firstName: '',
-    lastName: '',
-    role: UserRole.REGULAR,
-    departmentId: 0,
-  });
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleClose = () => {
-    setForm({ email: '', temporaryPassword: '', firstName: '', lastName: '', role: UserRole.REGULAR, departmentId: 0 });
-    setError('');
-    onClose();
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    if (!form.email || !form.firstName || !form.lastName || !form.temporaryPassword || !form.departmentId) {
-      setError('Please fill in all fields');
-      return;
-    }
-    setIsLoading(true);
-    try {
-      await createUser(form);
-      handleClose();
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setError(msg || 'Failed to create user');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const field = (key: keyof CreateUserPayload) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((prev) => ({ ...prev, [key]: e.target.value }));
-
-  return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
-      <DialogTitle>
-        <Typography variant="h6" fontWeight={700}>Add New User</Typography>
-        <Typography variant="body2" color="text.secondary">Configure employee access credentials.</Typography>
-      </DialogTitle>
-      <form onSubmit={handleSubmit}>
-        <DialogContent dividers>
-          {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>}
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="First Name" placeholder="e.g. Elizabeth" size="small" value={form.firstName} onChange={field('firstName')} />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Last Name" placeholder="e.g. Smith" size="small" value={form.lastName} onChange={field('lastName')} />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Work Email"
-                placeholder="e.smith@company.com"
-                type="email"
-                size="small"
-                value={form.email}
-                onChange={field('email')}
-                helperText="User will receive a temporary password and must change it on first login"
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Temporary Password"
-                placeholder="Min. 8 characters"
-                type="text"
-                size="small"
-                value={form.temporaryPassword}
-                onChange={field('temporaryPassword')}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Role</InputLabel>
-                <Select
-                  label="Role"
-                  value={form.role}
-                  onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value as UserRole }))}
-                >
-                  <MenuItem value={UserRole.REGULAR}>Employee</MenuItem>
-                  <MenuItem value={UserRole.SUPERVISOR}>Supervisor</MenuItem>
-                  <MenuItem value={UserRole.ADMIN}>Admin</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Department</InputLabel>
-                <Select
-                  label="Department"
-                  value={form.departmentId || ''}
-                  onChange={(e) => setForm((prev) => ({ ...prev, departmentId: Number(e.target.value) }))}
-                >
-                  {departments.map((d) => (
-                    <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={handleClose} sx={{ borderRadius: 2 }}>Cancel</Button>
-          <Button type="submit" variant="contained" disabled={isLoading} startIcon={isLoading ? <CircularProgress size={16} /> : <Add />} sx={{ borderRadius: 2 }}>
-            Create User
-          </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
-  );
-};
 
 // ── Edit User Dialog ─────────────────────────────────────────────────────────
 
@@ -256,13 +135,13 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ user, open, onClose, de
           {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>}
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="First Name" size="small" value={form.firstName || ''} onChange={(e) => setForm((p) => ({ ...p, firstName: e.target.value }))} />
+              <TextField fullWidth label="First Name" size="small" value={form.firstName || ''} onChange={(e) => setForm((p) => ({ ...p, firstName: e.target.value }))} sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Last Name" size="small" value={form.lastName || ''} onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))} />
+              <TextField fullWidth label="Last Name" size="small" value={form.lastName || ''} onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))} sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth size="small">
+              <FormControl fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}>
                 <InputLabel>Role</InputLabel>
                 <Select label="Role" value={form.role || ''} onChange={(e) => setForm((p) => ({ ...p, role: e.target.value as UserRole }))}>
                   <MenuItem value={UserRole.REGULAR}>Employee</MenuItem>
@@ -272,7 +151,7 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ user, open, onClose, de
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth size="small">
+              <FormControl fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}>
                 <InputLabel>Department</InputLabel>
                 <Select label="Department" value={form.departmentId || ''} onChange={(e) => setForm((p) => ({ ...p, departmentId: Number(e.target.value) }))}>
                   {departments.map((d) => (
@@ -284,7 +163,7 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ user, open, onClose, de
           </Grid>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={handleClose} sx={{ borderRadius: 2 }}>Cancel</Button>
+          <Button variant="outlined" onClick={handleClose} sx={{ borderRadius: 2 }}>Cancel</Button>
           <Button type="submit" variant="contained" disabled={isLoading} sx={{ borderRadius: 2 }}>Save Changes</Button>
         </DialogActions>
       </form>
@@ -349,7 +228,7 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({ user, open, o
           <Button variant="contained" onClick={handleClose} sx={{ borderRadius: 2 }}>Done</Button>
         ) : (
           <>
-            <Button onClick={handleClose} sx={{ borderRadius: 2 }}>Cancel</Button>
+            <Button variant="outlined" onClick={handleClose} sx={{ borderRadius: 2 }}>Cancel</Button>
             <Button variant="contained" color="warning" disabled={isLoading} onClick={handleReset} sx={{ borderRadius: 2 }}>
               {isLoading ? 'Resetting...' : 'Reset Password'}
             </Button>
@@ -363,10 +242,13 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({ user, open, o
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export const UserManagement: React.FC = () => {
-  const { users, isLoading, fetchUsers, updateUser } = useUserManagementStore();
+  const { users, isLoading, fetchUsers, updateUser, createUser } = useUserManagementStore();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [search, setSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState<AddUserFormData>(EMPTY_ADD_FORM);
+  const [addError, setAddError] = useState('');
+  const [addLoading, setAddLoading] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
   const [resetUser, setResetUser] = useState<User | null>(null);
 
@@ -382,12 +264,184 @@ export const UserManagement: React.FC = () => {
   });
 
   const totalUsers = users.length;
-  const activeUsers = users.filter((u) => u.isActive !== false).length;
+  const activeUsers = users.filter((u) => u.isActive ?? true).length;
   const adminCount = users.filter((u) => u.role === UserRole.ADMIN).length;
   const supervisorCount = users.filter((u) => u.role === UserRole.SUPERVISOR).length;
 
+  const handleAddFormChange = (field: keyof AddUserFormData, value: string | number) => {
+    setAddForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleAddClose = () => {
+    setAddForm(EMPTY_ADD_FORM);
+    setAddError('');
+    setAddOpen(false);
+  };
+
+  const handleAddSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddError('');
+    const { fullName, email, temporaryPassword, role, departmentId } = addForm;
+    if (!fullName.trim() || !email || !temporaryPassword || !role || !departmentId) {
+      setAddError('Please fill in all fields');
+      return;
+    }
+    if (!email.endsWith('@company.com')) {
+      setAddError('Email must be a @company.com address');
+      return;
+    }
+    const spaceIdx = fullName.trim().indexOf(' ');
+    const firstName = spaceIdx === -1 ? fullName.trim() : fullName.trim().slice(0, spaceIdx);
+    const lastName = spaceIdx === -1 ? '' : fullName.trim().slice(spaceIdx + 1);
+    if (!lastName) {
+      setAddError('Please enter both first and last name');
+      return;
+    }
+    setAddLoading(true);
+    try {
+      await createUser({ email, temporaryPassword, firstName, lastName, role, departmentId });
+      handleAddClose();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setAddError(msg || 'Failed to create user');
+    } finally {
+      setAddLoading(false);
+    }
+  };
+
   const handleToggleActive = (user: User) => {
-    updateUser(user.id, { isActive: !user.isActive });
+    updateUser(user.id, { isActive: !(user.isActive ?? true) });
+  };
+
+  const renderTableRows = () => {
+    if (isLoading) {
+      return (
+        <TableRow>
+          <TableCell colSpan={6} align="center" sx={{ py: 5 }}>
+            <CircularProgress size={28} />
+          </TableCell>
+        </TableRow>
+      );
+    }
+    if (filtered.length === 0) {
+      return (
+        <TableRow>
+          <TableCell colSpan={6} align="center" sx={{ py: 5 }}>
+            <Typography variant="body2" color="text.secondary">No users found</Typography>
+          </TableCell>
+        </TableRow>
+      );
+    }
+    return filtered.map((user, index) => {
+      const isActive = user.isActive ?? true;
+      return (
+        <TableRow key={user.id} sx={{ '&:hover': { bgcolor: '#F8FAFC' } }}>
+          <TableCell>
+            <Box display="flex" alignItems="center" gap={1.5}>
+              <Avatar sx={{ width: 32, height: 32, fontSize: '0.7rem', fontWeight: 700, bgcolor: AVATAR_COLORS[index % AVATAR_COLORS.length] }}>
+                {getInitials(user.firstName, user.lastName)}
+              </Avatar>
+              <Typography variant="body2" fontWeight={600} color="#1E293B">
+                {user.firstName} {user.lastName}
+              </Typography>
+            </Box>
+          </TableCell>
+          <TableCell>
+            <Typography variant="body2" color="#475569">{user.email}</Typography>
+          </TableCell>
+          <TableCell>
+            <Typography variant="body2" color="#475569">{user.department?.name ?? '—'}</Typography>
+          </TableCell>
+          <TableCell>{getRoleChip(user.role)}</TableCell>
+          <TableCell>
+            {isActive
+              ? <Chip label="Active" size="small" sx={{ bgcolor: '#DCFCE7', color: '#16A34A', fontWeight: 700, border: 'none' }} />
+              : <Chip label="Inactive" size="small" sx={{ bgcolor: '#F1F5F9', color: '#94A3B8', fontWeight: 700, border: 'none' }} />
+            }
+          </TableCell>
+          <TableCell align="center">
+            <Box display="flex" justifyContent="center" gap={0.5}>
+              <Tooltip title="Edit">
+                <IconButton size="small" onClick={() => setEditUser(user)} sx={{ color: '#6B7280' }}>
+                  <Edit fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Reset Password">
+                <IconButton size="small" onClick={() => setResetUser(user)} sx={{ color: '#6B7280' }}>
+                  <LockReset fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={isActive ? 'Deactivate' : 'Activate'}>
+                <IconButton
+                  size="small"
+                  onClick={() => handleToggleActive(user)}
+                  sx={{ color: isActive ? '#EF4444' : '#10B981', '&:hover': { bgcolor: isActive ? '#FEF2F2' : '#ECFDF5' } }}
+                >
+                  <PersonOff fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          </TableCell>
+        </TableRow>
+      );
+    });
+  };
+
+  const renderMobileRows = () => {
+    if (isLoading) {
+      return <Box textAlign="center" py={5}><CircularProgress size={28} /></Box>;
+    }
+    if (filtered.length === 0) {
+      return (
+        <Box textAlign="center" py={5}>
+          <Typography variant="body2" color="text.secondary">No users found</Typography>
+        </Box>
+      );
+    }
+    return filtered.map((user, index) => {
+      const isActive = user.isActive ?? true;
+      return (
+        <React.Fragment key={user.id}>
+          {index > 0 && <Divider />}
+          <Box sx={{ px: 2, py: 1.5 }}>
+            <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+              <Avatar sx={{ width: 36, height: 36, fontSize: '0.75rem', fontWeight: 700, bgcolor: AVATAR_COLORS[index % AVATAR_COLORS.length], flexShrink: 0 }}>
+                {getInitials(user.firstName, user.lastName)}
+              </Avatar>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="body2" fontWeight={700} color="#1E293B" noWrap>
+                  {user.firstName} {user.lastName}
+                </Typography>
+                <Typography variant="caption" color="#94A3B8" noWrap>
+                  {user.email}
+                </Typography>
+              </Box>
+              <Box sx={{ flexShrink: 0, textAlign: 'right' }}>
+                {getRoleChip(user.role)}
+                <Box mt={0.5}>
+                  {isActive
+                    ? <Chip label="Active" size="small" sx={{ bgcolor: '#DCFCE7', color: '#16A34A', fontWeight: 700, border: 'none', height: 18, fontSize: '0.65rem' }} />
+                    : <Chip label="Inactive" size="small" sx={{ bgcolor: '#F1F5F9', color: '#94A3B8', fontWeight: 700, border: 'none', height: 18, fontSize: '0.65rem' }} />
+                  }
+                </Box>
+              </Box>
+            </Box>
+            <Box display="flex" gap={1} justifyContent="flex-end">
+              <Button size="small" startIcon={<Edit fontSize="small" />} onClick={() => setEditUser(user)} sx={{ borderRadius: 2, fontSize: '0.75rem', color: '#6B7280' }}>Edit</Button>
+              <Button size="small" startIcon={<LockReset fontSize="small" />} onClick={() => setResetUser(user)} sx={{ borderRadius: 2, fontSize: '0.75rem', color: '#6B7280' }}>Reset</Button>
+              <Button
+                size="small"
+                startIcon={<PersonOff fontSize="small" />}
+                onClick={() => handleToggleActive(user)}
+                sx={{ borderRadius: 2, fontSize: '0.75rem', color: isActive ? '#EF4444' : '#10B981' }}
+              >
+                {isActive ? 'Deactivate' : 'Activate'}
+              </Button>
+            </Box>
+          </Box>
+        </React.Fragment>
+      );
+    });
   };
 
   return (
@@ -455,70 +509,7 @@ export const UserManagement: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={6} align="center" sx={{ py: 5 }}>
-                        <CircularProgress size={28} />
-                      </TableCell>
-                    </TableRow>
-                  ) : filtered.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} align="center" sx={{ py: 5 }}>
-                        <Typography variant="body2" color="text.secondary">No users found</Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filtered.map((user, index) => (
-                      <TableRow key={user.id} sx={{ '&:hover': { bgcolor: '#F8FAFC' } }}>
-                        <TableCell>
-                          <Box display="flex" alignItems="center" gap={1.5}>
-                            <Avatar sx={{ width: 32, height: 32, fontSize: '0.7rem', fontWeight: 700, bgcolor: AVATAR_COLORS[index % AVATAR_COLORS.length] }}>
-                              {getInitials(user.firstName, user.lastName)}
-                            </Avatar>
-                            <Typography variant="body2" fontWeight={600} color="#1E293B">
-                              {user.firstName} {user.lastName}
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" color="#475569">{user.email}</Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" color="#475569">{user.department?.name ?? '—'}</Typography>
-                        </TableCell>
-                        <TableCell>{getRoleChip(user.role)}</TableCell>
-                        <TableCell>
-                          {user.isActive !== false
-                            ? <Chip label="Active" size="small" sx={{ bgcolor: '#DCFCE7', color: '#16A34A', fontWeight: 700, border: 'none' }} />
-                            : <Chip label="Inactive" size="small" sx={{ bgcolor: '#F1F5F9', color: '#94A3B8', fontWeight: 700, border: 'none' }} />
-                          }
-                        </TableCell>
-                        <TableCell align="center">
-                          <Box display="flex" justifyContent="center" gap={0.5}>
-                            <Tooltip title="Edit">
-                              <IconButton size="small" onClick={() => setEditUser(user)} sx={{ color: '#6B7280' }}>
-                                <Edit fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Reset Password">
-                              <IconButton size="small" onClick={() => setResetUser(user)} sx={{ color: '#6B7280' }}>
-                                <LockReset fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title={user.isActive !== false ? 'Deactivate' : 'Activate'}>
-                              <IconButton
-                                size="small"
-                                onClick={() => handleToggleActive(user)}
-                                sx={{ color: user.isActive !== false ? '#EF4444' : '#10B981', '&:hover': { bgcolor: user.isActive !== false ? '#FEF2F2' : '#ECFDF5' } }}
-                              >
-                                <PersonOff fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
+                  {renderTableRows()}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -526,55 +517,7 @@ export const UserManagement: React.FC = () => {
 
           {/* Mobile card list */}
           <Box sx={{ display: { xs: 'block', md: 'none' } }}>
-            {isLoading ? (
-              <Box textAlign="center" py={5}><CircularProgress size={28} /></Box>
-            ) : filtered.length === 0 ? (
-              <Box textAlign="center" py={5}>
-                <Typography variant="body2" color="text.secondary">No users found</Typography>
-              </Box>
-            ) : (
-              filtered.map((user, index) => (
-                <React.Fragment key={user.id}>
-                  {index > 0 && <Divider />}
-                  <Box sx={{ px: 2, py: 1.5 }}>
-                    <Box display="flex" alignItems="center" gap={1.5} mb={1}>
-                      <Avatar sx={{ width: 36, height: 36, fontSize: '0.75rem', fontWeight: 700, bgcolor: AVATAR_COLORS[index % AVATAR_COLORS.length], flexShrink: 0 }}>
-                        {getInitials(user.firstName, user.lastName)}
-                      </Avatar>
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="body2" fontWeight={700} color="#1E293B" noWrap>
-                          {user.firstName} {user.lastName}
-                        </Typography>
-                        <Typography variant="caption" color="#94A3B8" noWrap>
-                          {user.email}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ flexShrink: 0, textAlign: 'right' }}>
-                        {getRoleChip(user.role)}
-                        <Box mt={0.5}>
-                          {user.isActive !== false
-                            ? <Chip label="Active" size="small" sx={{ bgcolor: '#DCFCE7', color: '#16A34A', fontWeight: 700, border: 'none', height: 18, fontSize: '0.65rem' }} />
-                            : <Chip label="Inactive" size="small" sx={{ bgcolor: '#F1F5F9', color: '#94A3B8', fontWeight: 700, border: 'none', height: 18, fontSize: '0.65rem' }} />
-                          }
-                        </Box>
-                      </Box>
-                    </Box>
-                    <Box display="flex" gap={1} justifyContent="flex-end">
-                      <Button size="small" startIcon={<Edit fontSize="small" />} onClick={() => setEditUser(user)} sx={{ borderRadius: 2, fontSize: '0.75rem', color: '#6B7280' }}>Edit</Button>
-                      <Button size="small" startIcon={<LockReset fontSize="small" />} onClick={() => setResetUser(user)} sx={{ borderRadius: 2, fontSize: '0.75rem', color: '#6B7280' }}>Reset</Button>
-                      <Button
-                        size="small"
-                        startIcon={<PersonOff fontSize="small" />}
-                        onClick={() => handleToggleActive(user)}
-                        sx={{ borderRadius: 2, fontSize: '0.75rem', color: user.isActive !== false ? '#EF4444' : '#10B981' }}
-                      >
-                        {user.isActive !== false ? 'Deactivate' : 'Activate'}
-                      </Button>
-                    </Box>
-                  </Box>
-                </React.Fragment>
-              ))
-            )}
+            {renderMobileRows()}
           </Box>
 
           <Box px={2.5} py={1.5} borderTop="1px solid #F1F5F9">
@@ -585,7 +528,16 @@ export const UserManagement: React.FC = () => {
         </CardContent>
       </Card>
 
-      <AddUserDialog open={addOpen} onClose={() => setAddOpen(false)} departments={departments} />
+      <AddUserDialog
+        open={addOpen}
+        onClose={handleAddClose}
+        departments={departments}
+        formData={addForm}
+        onChange={handleAddFormChange}
+        onSubmit={handleAddSubmit}
+        error={addError}
+        isLoading={addLoading}
+      />
       <EditUserDialog user={editUser} open={!!editUser} onClose={() => setEditUser(null)} departments={departments} />
       <ResetPasswordDialog user={resetUser} open={!!resetUser} onClose={() => setResetUser(null)} />
     </Box>
