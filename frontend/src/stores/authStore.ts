@@ -13,6 +13,8 @@ interface AuthState {
   setUser: (user: User) => void;
   setLoading: (loading: boolean) => void;
   changePassword: (newPassword: string) => Promise<void>;
+  fetchProfile: () => Promise<void>;
+  updateProfile: (firstName: string, lastName: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -71,6 +73,18 @@ export const useAuthStore = create<AuthState>()(
         await apiClient.post('/auth/change-password', { newPassword });
         set((state) => ({
           user: state.user ? { ...state.user, mustChangePassword: false } : null,
+        }));
+      },
+
+      fetchProfile: async () => {
+        const res = await apiClient.get<User>('/auth/me');
+        set({ user: res.data });
+      },
+
+      updateProfile: async (firstName: string, lastName: string) => {
+        const res = await apiClient.patch<User>('/auth/me', { firstName, lastName });
+        set((state) => ({
+          user: state.user ? { ...state.user, ...res.data } : null,
         }));
       },
     }),

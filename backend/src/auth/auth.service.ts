@@ -4,6 +4,7 @@ import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { User } from '../users/entities/user.entity';
 
 @Injectable()
@@ -53,6 +54,14 @@ export class AuthService {
 
   async changePassword(userId: number, dto: ChangePasswordDto): Promise<void> {
     await this.usersService.updatePassword(userId, dto.newPassword);
+  }
+
+  async getMe(userId: number): Promise<User | null> {
+    return this.usersService.findOne(userId);
+  }
+
+  async updateMe(userId: number, dto: UpdateProfileDto): Promise<User> {
+    return this.usersService.updateUser(userId, dto);
   }
 
   async validateToken(payload: { sub: number }): Promise<User | null> {
