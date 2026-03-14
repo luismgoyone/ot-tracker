@@ -21,6 +21,7 @@ import { OtRecordManagement } from './pages/OtRecordManagement';
 import { MyOtRecords } from './pages/MyOtRecords';
 import { CreateOtRecord } from './pages/CreateOtRecord';
 import { UserManagement } from './pages/UserManagement';
+import { UserProfile } from './pages/UserProfile';
 
 const theme = createTheme({
   palette: {
@@ -203,7 +204,7 @@ function App() {
                   />
 
                   <Route path="/reports" element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/settings" element={<Navigate to="/" replace />} />
+                  <Route path="/settings" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
                   <Route path="/help" element={<Navigate to="/" replace />} />
 
                   <Route

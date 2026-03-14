@@ -81,7 +81,9 @@ export const Navbar: React.FC = () => {
                   color="inherit"
                   onClick={() => navigate('/dashboard')}
                   sx={{
-                    bgcolor: isActive('/dashboard') ? 'rgba(255,255,255,0.1)' : 'transparent',
+                    bgcolor: isActive('/dashboard')
+                      ? 'rgba(255,255,255,0.1)'
+                      : 'transparent',
                   }}
                 >
                   Dashboard
@@ -90,7 +92,9 @@ export const Navbar: React.FC = () => {
                   color="inherit"
                   onClick={() => navigate('/ot-management')}
                   sx={{
-                    bgcolor: isActive('/ot-management') ? 'rgba(255,255,255,0.1)' : 'transparent',
+                    bgcolor: isActive('/ot-management')
+                      ? 'rgba(255,255,255,0.1)'
+                      : 'transparent',
                   }}
                 >
                   OT Management
@@ -102,7 +106,9 @@ export const Navbar: React.FC = () => {
                   color="inherit"
                   onClick={() => navigate('/my-ot')}
                   sx={{
-                    bgcolor: isActive('/my-ot') ? 'rgba(255,255,255,0.1)' : 'transparent',
+                    bgcolor: isActive('/my-ot')
+                      ? 'rgba(255,255,255,0.1)'
+                      : 'transparent',
                   }}
                 >
                   My OT Records
@@ -111,7 +117,9 @@ export const Navbar: React.FC = () => {
                   color="inherit"
                   onClick={() => navigate('/create-ot')}
                   sx={{
-                    bgcolor: isActive('/create-ot') ? 'rgba(255,255,255,0.1)' : 'transparent',
+                    bgcolor: isActive('/create-ot')
+                      ? 'rgba(255,255,255,0.1)'
+                      : 'transparent',
                   }}
                 >
                   Submit OT
@@ -155,7 +163,7 @@ export const Navbar: React.FC = () => {
               <ListItemIcon>
                 <Person fontSize="small" />
               </ListItemIcon>
-              <ListItemText>Profile</ListItemText>
+              <ListItemText>Settings</ListItemText>
             </MenuItem>
             <Divider />
             <MenuItem onClick={handleLogout}>

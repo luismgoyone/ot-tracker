@@ -1,8 +1,9 @@
-import { Controller, Request, Post, UseGuards, Body } from '@nestjs/common';
+import { Controller, Request, Post, Get, Patch, UseGuards, Body } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -23,8 +24,17 @@ export class AuthController {
   }
 
   @UseGuards(AuthGuard('jwt'))
-  @Post('profile')
-  getProfile(@Request() req: { user: { userId: number; email: string; role: string } }) {
-    return req.user;
+  @Get('me')
+  getMe(@Request() req: { user: { userId: number } }) {
+    return this.authService.getMe(req.user.userId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch('me')
+  updateMe(
+    @Request() req: { user: { userId: number } },
+    @Body() dto: UpdateProfileDto,
+  ) {
+    return this.authService.updateMe(req.user.userId, dto);
   }
 }
