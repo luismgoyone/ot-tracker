@@ -1,6 +1,7 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import { OtRecord } from './entities/ot-record.entity';
 import { CreateOtRecordDto } from './dto/create-ot-record.dto';
 import { UpdateOtRecordDto } from './dto/update-ot-record.dto';
@@ -15,10 +16,15 @@ const RELATIONS = { user: { department: true } };
 
 @Injectable()
 export class OtRecordsService {
+  private readonly timezone: string;
+
   constructor(
     @InjectRepository(OtRecord)
     private otRecordsRepository: Repository<OtRecord>,
-  ) {}
+    config: ConfigService,
+  ) {
+    this.timezone = config.get<string>('APP_TIMEZONE', 'Asia/Manila');
+  }
 
   async create(dto: CreateOtRecordDto, userId: number): Promise<OtRecord> {
     const otRecord = this.otRecordsRepository.create({
@@ -33,20 +39,51 @@ export class OtRecordsService {
 
   /** Supervisors only see their own department; admins can see all or filter by department. */
   async findAll(query: FindOtRecordsQueryDto, actor: AuthUser): Promise<PaginatedResult<OtRecord>> {
-    const where: FindOptionsWhere<OtRecord> = {};
-    if (query.status) where.status = query.status;
+    const qb = this.otRecordsRepository
+      .createQueryBuilder('record')
+      .leftJoinAndSelect('record.user', 'user')
+      .leftJoinAndSelect('user.department', 'department')
+      .orderBy('record.createdAt', 'DESC')
+      .skip((query.page - 1) * query.limit)
+      .take(query.limit);
+
+    if (query.status) qb.andWhere('record.status = :status', { status: query.status });
 
     const departmentId = actor.role === UserRole.ADMIN ? query.departmentId : actor.departmentId;
-    if (departmentId !== undefined) where.user = { departmentId };
+    if (departmentId !== undefined) qb.andWhere('user.departmentId = :departmentId', { departmentId });
 
-    const [data, total] = await this.otRecordsRepository.findAndCount({
-      where,
-      relations: RELATIONS,
-      order: { createdAt: 'DESC' },
-      skip: (query.page - 1) * query.limit,
-      take: query.limit,
-    });
+    const search = query.search?.trim();
+    if (search) {
+      const term = `%${search.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      qb.andWhere(
+        new Brackets((w) =>
+          w
+            .where(`CONCAT(user.firstName, ' ', user.lastName) ILIKE :term`, { term })
+            .orWhere('department.name ILIKE :term', { term })
+            .orWhere('record.reason ILIKE :term', { term }),
+        ),
+      );
+    }
+
+    const [data, total] = await qb.getManyAndCount();
     return paginate(data, total, query);
+  }
+
+  /** Totals across all of the user's records (not just the current page). */
+  async getSummary(userId: number) {
+    const [row] = await this.otRecordsRepository.query(
+      `SELECT
+         COUNT(*)::int AS "totalRecords",
+         COUNT(*) FILTER (WHERE status = 'pending')::int AS "pendingRecords",
+         COALESCE(SUM(duration) FILTER (WHERE status = 'approved'), 0)::float AS "approvedHours",
+         COALESCE(SUM(duration) FILTER (
+           WHERE status = 'approved' AND date >= date_trunc('month', (now() AT TIME ZONE $2)::date)
+         ), 0)::float AS "approvedHoursThisMonth"
+       FROM ot_records
+       WHERE user_id = $1`,
+      [userId, this.timezone],
+    );
+    return row;
   }
 
   async findByUser(userId: number, query: PaginationQueryDto): Promise<PaginatedResult<OtRecord>> {

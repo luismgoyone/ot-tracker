@@ -30,6 +30,11 @@ export class OtRecordsController {
     return this.otRecordsService.findByUser(user.id, query);
   }
 
+  @Get('my-summary')
+  getMySummary(@CurrentUser() user: AuthUser) {
+    return this.otRecordsService.getSummary(user.id);
+  }
+
   @Patch(':id/status')
   @Roles(UserRole.SUPERVISOR)
   updateStatus(
