@@ -13,7 +13,6 @@ dist/
 build/
 
 # Docker
-.dockerignore
 
 # IDE
 .vscode/

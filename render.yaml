@@ -2,8 +2,9 @@ services:
   - type: web
     name: ot-tracker-backend
     env: node
-    buildCommand: cd backend && npm install && npm run build
+    buildCommand: cd backend && npm ci && npm run build
     startCommand: cd backend && npm run start:prod
+    healthCheckPath: /api/health
     envVars:
       - key: DATABASE_HOST
         sync: false
@@ -23,3 +24,7 @@ services:
         value: production
       - key: PORT
         value: 3000
+      - key: APP_TIMEZONE
+        value: Asia/Manila
+      - key: TRUST_PROXY_HOPS
+        value: 2
