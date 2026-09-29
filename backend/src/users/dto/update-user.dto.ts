@@ -1,13 +1,17 @@
-import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { UserRole } from '../../common/enums';
 
 export class UpdateUserDto {
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
   firstName?: string;
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
   lastName?: string;
 
   @IsOptional()
@@ -15,7 +19,7 @@ export class UpdateUserDto {
   role?: UserRole;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   departmentId?: number;
 
   @IsOptional()

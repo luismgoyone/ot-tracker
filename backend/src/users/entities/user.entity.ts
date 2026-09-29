@@ -20,7 +20,8 @@ export class User {
   @Column({ unique: true })
   email!: string;
 
-  @Column()
+  /** Never loaded unless explicitly selected, so hashes can't leak through relations. */
+  @Column({ select: false })
   password!: string;
 
   @Column({ name: 'first_name' })
@@ -29,11 +30,7 @@ export class User {
   @Column({ name: 'last_name' })
   lastName!: string;
 
-  @Column({
-    type: 'varchar',
-    enum: UserRole,
-    default: UserRole.REGULAR,
-  })
+  @Column({ type: 'varchar', length: 50, default: UserRole.REGULAR })
   role!: UserRole;
 
   @Column({ name: 'department_id' })

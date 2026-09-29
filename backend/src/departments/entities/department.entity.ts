@@ -16,7 +16,7 @@ export class Department {
   @Column({ unique: true })
   name!: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'text', nullable: true })
   description!: string | null;
 
   @OneToMany(() => User, (user) => user.department)

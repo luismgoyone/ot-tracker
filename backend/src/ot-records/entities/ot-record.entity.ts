@@ -27,20 +27,22 @@ export class OtRecord {
   @Column({ type: 'time', name: 'end_time' })
   endTime!: string;
 
-  @Column({ type: 'decimal', precision: 4, scale: 2 })
-  duration!: number; // in hours
+  /** Hours, computed server-side from start/end. Postgres returns decimals as strings, so convert. */
+  @Column({
+    type: 'decimal',
+    precision: 4,
+    scale: 2,
+    transformer: { to: (v: number) => v, from: (v: string | null) => (v === null ? null : Number(v)) },
+  })
+  duration!: number;
 
   @Column({ type: 'text' })
   reason!: string;
 
-  @Column({
-    type: 'varchar',
-    enum: OtStatus,
-    default: OtStatus.PENDING,
-  })
+  @Column({ type: 'varchar', length: 50, default: OtStatus.PENDING })
   status!: OtStatus;
 
-  @Column({ nullable: true, name: 'approved_by' })
+  @Column({ type: 'int', nullable: true, name: 'approved_by' })
   approvedBy!: number | null;
 
   @Column({ type: 'text', nullable: true })
