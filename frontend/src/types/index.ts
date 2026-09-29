@@ -54,11 +54,12 @@ export interface OtRecord {
   date: string;
   startTime: string;
   endTime: string;
-  duration: string | number; // Can be string from API or number
+  /** Hours, computed by the server from start/end time. */
+  duration: number;
   reason: string;
   status: OtStatus;
-  approvedBy?: number;
-  comments?: string;
+  approvedBy?: number | null;
+  comments?: string | null;
   user?: User;
   createdAt: string;
   updatedAt: string;
@@ -74,13 +75,32 @@ export interface AuthResponse {
   user: User;
 }
 
-export interface CreateOtRecordDto {
+/** Duration is not sent: the server computes it from the times. */
+export interface CreateOtRecordPayload {
   date: string;
   startTime: string;
   endTime: string;
-  duration: number;
   reason: string;
   comments?: string;
+}
+
+export interface OtRecordFilters {
+  page: number;
+  limit: number;
+  status?: OtStatus;
+  search?: string;
+}
+
+export interface MyOtSummary {
+  totalRecords: number;
+  pendingRecords: number;
+  approvedHours: number;
+  approvedHoursThisMonth: number;
+}
+
+export interface Paginated<T> {
+  data: T[];
+  meta: PaginationMeta;
 }
 
 export interface DashboardStats {
@@ -93,25 +113,34 @@ export interface DashboardStats {
 }
 
 export interface DepartmentStats {
+  departmentId: number;
   departmentName: string;
   count: number;
   totalHours: number;
 }
 
 export interface MonthlyStats {
+  year: number;
+  /** 1-12 */
   month: number;
   count: number;
   totalHours: number;
 }
 
+/** Approved OT this month, compared with last month. */
 export interface TopUser {
+  userId: number;
   name: string;
   departmentName: string;
   count: number;
   totalHours: number;
+  previousHours: number;
+  /** null when there was no approved OT last month to compare against. */
+  changePercent: number | null;
 }
 
 export interface OtTrend {
+  /** YYYY-MM-DD */
   date: string;
   count: number;
   totalHours: number;

@@ -4,8 +4,6 @@ import {
   ManageAccounts,
   AccessTime,
   Add,
-  HelpOutline,
-  BarChart,
   AdminPanelSettings,
   Person,
 } from '@mui/icons-material';
@@ -26,11 +24,6 @@ const systemSection: NavSection = {
   section: 'SYSTEM',
   items: [
     { label: 'Settings', path: '/settings', icon: <Person fontSize="small" /> },
-    {
-      label: 'Help Center',
-      path: '/help',
-      icon: <HelpOutline fontSize="small" />,
-    },
   ],
 };
 
@@ -54,11 +47,6 @@ export const sidebarNavByRole: Record<UserRole, NavSection[]> = {
           path: '/user-management',
           icon: <AdminPanelSettings fontSize="small" />,
         },
-        {
-          label: 'Reports',
-          path: '/reports',
-          icon: <BarChart fontSize="small" />,
-        },
       ],
     },
     systemSection,
@@ -76,11 +64,6 @@ export const sidebarNavByRole: Record<UserRole, NavSection[]> = {
           label: 'OT Management',
           path: '/ot-management',
           icon: <ManageAccounts fontSize="small" />,
-        },
-        {
-          label: 'Reports',
-          path: '/reports',
-          icon: <BarChart fontSize="small" />,
         },
       ],
     },

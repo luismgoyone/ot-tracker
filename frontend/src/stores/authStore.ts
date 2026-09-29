@@ -1,20 +1,19 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { User, AuthResponse } from '../types';
-import { apiClient } from '../utils/apiClient';
+import { User, AuthResponse, LoginCredentials } from '../types';
+import { apiClient } from '../api/client';
+import { queryClient } from '../api/queryClient';
 
+/** Session state only; server data lives in TanStack Query (see src/api). */
 interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (credentials: { email: string; password: string }) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<User>;
   logout: () => void;
   setUser: (user: User) => void;
-  setLoading: (loading: boolean) => void;
-  changePassword: (newPassword: string) => Promise<void>;
-  fetchProfile: () => Promise<void>;
-  updateProfile: (firstName: string, lastName: string) => Promise<void>;
+  requirePasswordChange: () => void;
+  changePassword: (newPassword: string, currentPassword?: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -23,68 +22,30 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
-      isLoading: false,
 
       login: async (credentials) => {
-        set({ isLoading: true });
-        try {
-          const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(credentials),
-          });
-
-          if (!response.ok) {
-            throw new Error('Login failed');
-          }
-
-          const data: AuthResponse = await response.json();
-          set({
-            user: data.user,
-            token: data.access_token,
-            isAuthenticated: true,
-            isLoading: false,
-          });
-        } catch (error) {
-          set({ isLoading: false });
-          throw error;
-        }
+        const { data } = await apiClient.post<AuthResponse>('/auth/login', credentials);
+        set({ user: data.user, token: data.access_token, isAuthenticated: true });
+        return data.user;
       },
 
       logout: () => {
-        set({
-          user: null,
-          token: null,
-          isAuthenticated: false,
-        });
+        queryClient.clear();
+        set({ user: null, token: null, isAuthenticated: false });
       },
 
       setUser: (user) => {
-        set({ user });
+        set((state) => ({ user: state.user ? { ...state.user, ...user } : user }));
       },
 
-      setLoading: (loading) => {
-        set({ isLoading: loading });
+      requirePasswordChange: () => {
+        set((state) => ({ user: state.user ? { ...state.user, mustChangePassword: true } : null }));
       },
 
-      changePassword: async (newPassword: string) => {
-        await apiClient.post('/auth/change-password', { newPassword });
+      changePassword: async (newPassword, currentPassword) => {
+        await apiClient.post('/auth/change-password', { newPassword, currentPassword });
         set((state) => ({
           user: state.user ? { ...state.user, mustChangePassword: false } : null,
-        }));
-      },
-
-      fetchProfile: async () => {
-        const res = await apiClient.get<User>('/auth/me');
-        set({ user: res.data });
-      },
-
-      updateProfile: async (firstName: string, lastName: string) => {
-        const res = await apiClient.patch<User>('/auth/me', { firstName, lastName });
-        set((state) => ({
-          user: state.user ? { ...state.user, ...res.data } : null,
         }));
       },
     }),
@@ -95,6 +56,6 @@ export const useAuthStore = create<AuthState>()(
         token: state.token,
         isAuthenticated: state.isAuthenticated,
       }),
-    }
-  )
+    },
+  ),
 );

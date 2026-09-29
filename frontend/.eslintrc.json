@@ -1,7 +1,7 @@
 {
   "extends": [
     "eslint:recommended",
-    "@typescript-eslint/recommended",
+    "plugin:@typescript-eslint/recommended",
     "plugin:react-hooks/recommended"
   ],
   "parser": "@typescript-eslint/parser",
@@ -12,7 +12,7 @@
       "warn",
       { "allowConstantExport": true }
     ],
-    "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+    "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_", "ignoreRestSiblings": true }],
     "@typescript-eslint/no-explicit-any": "error"
   },
   "ignorePatterns": ["dist/", "node_modules/"]
