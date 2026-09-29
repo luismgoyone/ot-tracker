@@ -10,8 +10,14 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ot_tracker"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
 
+  # Applies migrations on startup. Load sample data with:
+  #   docker compose exec backend npm run seed
   backend:
     build:
       context: ./backend
@@ -25,11 +31,14 @@ services:
       DATABASE_NAME: ot_tracker
       DATABASE_USER: postgres
       DATABASE_PASSWORD: password
-      JWT_SECRET: your-jwt-secret-key
+      JWT_SECRET: local-development-secret-change-me-in-production
+      NODE_ENV: development
       PORT: 3000
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
+  # Serves the built app and proxies /api to the backend (see frontend/nginx.conf).
   frontend:
     build:
       context: ./frontend
@@ -37,8 +46,6 @@ services:
     container_name: ot-tracker-frontend
     ports:
       - "3000:3000"
-    environment:
-      VITE_API_URL: http://localhost:3001
     depends_on:
       - backend
 
