@@ -2,6 +2,21 @@
 
 A full-stack overtime tracking application built with React, TypeScript, NestJS, and PostgreSQL.
 
+## Live Demo
+
+**https://ot-management.netlify.app**
+
+Sign in with any of these sample accounts. They all use the password `password123`:
+
+| Role | Email | What you'll see |
+|------|-------|-----------------|
+| Admin | `admin@company.com` | Every department, plus user management |
+| Supervisor | `supervisor@company.com` | The Engineering dashboard, and approving Engineering requests |
+| Employee | `employee@company.com` | Your own requests and the Submit OT form |
+
+- The demo data is reset on the 1st of every month, so anything you change is temporary.
+- The backend runs on a free instance that sleeps when idle, so the first request can take up to a minute.
+
 ## Features
 
 ### For Employees
@@ -39,7 +54,7 @@ A full-stack overtime tracking application built with React, TypeScript, NestJS,
 ### Hosting
 - **Frontend:** [Netlify](https://www.netlify.com/), which also proxies `/api/*` to the backend
 - **Backend:** [Render](https://render.com/) (free web service, configured in `render.yaml`)
-- **Database:** [Neon](https://neon.tech/) serverless Postgres (free plan, AWS Singapore)
+- **Database:** [Neon](https://neon.tech/) serverless Postgres (free plan, AWS Singapore). The demo data is refreshed monthly by `.github/workflows/refresh-demo-data.yml`.
 
 ## Quick Start
 
@@ -75,11 +90,10 @@ docker compose exec backend npm run seed  # optional: load sample data
    npm run dev
    ```
 
-### Sample Accounts (local only)
+### Sample Accounts
 
-The seed script creates 16 sample users, all with the password `password123`, for example:
-`admin@company.com`, `supervisor@company.com` (Engineering) and `employee@company.com`.
-It refuses to run when `NODE_ENV=production`. Never load it into a real database.
+The seed script creates the same 16 sample users as the [live demo](#live-demo), all with the password `password123`.
+It refuses to run when `NODE_ENV=production`.
 
 ## API Endpoints
 
@@ -220,10 +234,6 @@ VALUES ('you@example.com', '<hash>', 'First', 'Last', 'admin', 1, true);
 1. Create a feature branch: `git checkout -b feature-name`
 2. Commit your changes and push the branch
 3. Open a pull request. CI must pass, and `main` requires an approving review
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Support
 
