@@ -6,8 +6,13 @@ on:
       - 'v*.*.*'
 
 jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+
   deploy-frontend:
     name: Deploy Frontend to Netlify
+    needs: ci
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,6 +40,7 @@ jobs:
 
   deploy-backend:
     name: Deploy Backend to Render
+    needs: ci
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Render deploy hook
