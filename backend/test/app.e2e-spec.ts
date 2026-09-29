@@ -239,6 +239,31 @@ describe('OT Tracker API (e2e)', () => {
       expect(JSON.stringify(res.body)).not.toContain('$2a$');
     });
 
+    it('searches across name, department and reason on the server', async () => {
+      const res = await api().get('/api/ot-records?search=david&limit=100').set(as('admin')).expect(200);
+      expect(res.body.meta.total).toBeGreaterThan(0);
+      expect(res.body.data.every((r: { user: { firstName: string } }) => r.user.firstName === 'David')).toBe(true);
+      // LIKE wildcards are matched literally
+      const none = await api().get('/api/ot-records?search=%25').set(as('admin')).expect(200);
+      expect(none.body.meta.total).toBe(0);
+    });
+
+    it('summarises all of a user\'s records, not just one page', async () => {
+      const res = await api().get('/api/ot-records/my-summary').set(as('employee')).expect(200);
+      const [expected] = await db.query(
+        `SELECT COUNT(*)::int AS total FROM ot_records WHERE user_id = $1`,
+        [ids.employee],
+      );
+      expect(res.body.totalRecords).toBe(expected.total);
+      expect(res.body).toEqual(
+        expect.objectContaining({
+          pendingRecords: expect.any(Number),
+          approvedHours: expect.any(Number),
+          approvedHoursThisMonth: expect.any(Number),
+        }),
+      );
+    });
+
     it('caps the page size', () => api().get('/api/ot-records?limit=1000').set(as('admin')).expect(400));
 
     describe('approvals', () => {
