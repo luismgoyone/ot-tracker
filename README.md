@@ -38,9 +38,15 @@ A full-stack overtime tracking application built with React, TypeScript, NestJS,
 - **Bcrypt** for password hashing
 
 ### DevOps
-- **Docker** and **Docker Compose**
-- **Nginx** for frontend serving
+- **Docker** and **Docker Compose** for local development
+- **Nginx** for frontend serving (Docker)
+- **GitHub Actions** for release deployments
 - Database initialization scripts
+
+### Hosting
+- **Frontend:** [Netlify](https://www.netlify.com/)
+- **Backend:** [Render](https://render.com/) (free web service, configured in `render.yaml`)
+- **Database:** [Neon](https://neon.tech/) serverless Postgres (free plan, AWS Singapore)
 
 ## Quick Start
 
@@ -201,26 +207,43 @@ npm run migration:run
 
 ## Deployment
 
+| Part | Host | How it deploys |
+|------|------|----------------|
+| Frontend | Netlify | Built and deployed by GitHub Actions on release tags |
+| Backend | Render | GitHub Actions triggers a Render deploy hook on release tags |
+| Database | Neon | Managed Postgres; schema loaded from `database/init.sql` |
+
+### Releasing
+Merge to `main`, then push a semver tag to trigger `.github/workflows/deploy.yml`:
+```bash
+git tag -a v1.2.3 -m "v1.2.3"
+git push origin v1.2.3
+```
+
+Required GitHub secrets: `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID`, `RENDER_DEPLOY_HOOK_URL`.
+
 ### Environment Variables
-Set the following environment variables for production:
+Set these in the Render dashboard (backend) and Netlify (frontend):
 
 ```env
-# Backend
-DATABASE_HOST=your-db-host
+# Backend (Render)
+DATABASE_HOST=your-neon-host.neon.tech
 DATABASE_PORT=5432
-DATABASE_NAME=ot_tracker
+DATABASE_NAME=neondb
 DATABASE_USER=your-db-user
 DATABASE_PASSWORD=your-secure-password
+DATABASE_SSL=true            # Neon requires SSL
 JWT_SECRET=your-very-secure-jwt-secret
 NODE_ENV=production
 
-# Frontend
+# Frontend (Netlify)
 VITE_API_URL=https://your-api-domain.com
 ```
 
-### Docker Production Build
+### Setting Up a New Database
+Load the schema into a fresh Neon database (quote the URL so the shell doesn't mangle `?` and `&`):
 ```bash
-docker-compose -f docker-compose.prod.yml up -d
+psql 'postgresql://USER:PASSWORD@HOST/neondb?sslmode=require' -f database/init.sql
 ```
 
 ## Contributing
