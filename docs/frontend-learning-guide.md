@@ -10,7 +10,8 @@
 | **TypeScript** | Type safety | Catches bugs at compile time, not runtime |
 | **Vite** | Dev server + bundler | Extremely fast hot reload vs. Webpack/CRA |
 | **Material-UI (MUI)** | Component library | Pre-built, accessible, themeable UI components |
-| **Zustand** | Global state | Simpler than Redux, no boilerplate |
+| **TanStack Query** | Server data | Fetching, caching, loading/error states and refetching |
+| **Zustand** | Session state | Tiny global store for "who is logged in" |
 | **Axios** | HTTP client | Interceptors for auth tokens and error handling |
 | **React Router v6** | Client-side routing | Navigate between pages without full page reloads |
 | **Recharts** | Data visualization | Chart library built for React |
@@ -56,13 +57,15 @@ Browser loads index.html
 
 ### `App.tsx` — The Router and Theme
 
-`App.tsx` does three things:
+`App.tsx` does four things:
 
-1. **Sets up the MUI theme** — custom colors, fonts, and component overrides that apply globally
-2. **Sets up the date picker locale** — `LocalizationProvider` wraps the app so MUI date/time pickers work
-3. **Defines all routes** — which URL maps to which page component
+1. **Provides the query client** — `QueryClientProvider` (TanStack Query's cache, see below)
+2. **Applies the MUI theme** from `theme/theme.ts` — colors, fonts and component overrides
+3. **Sets up the date picker locale** — `LocalizationProvider` so MUI date/time pickers work
+4. **Defines all routes** — which URL maps to which page component
 
 ```tsx
+<QueryClientProvider client={queryClient}>
 <ThemeProvider theme={theme}>
   <LocalizationProvider dateAdapter={AdapterDayjs}>
     <BrowserRouter>
@@ -78,6 +81,7 @@ Browser loads index.html
     </BrowserRouter>
   </LocalizationProvider>
 </ThemeProvider>
+</QueryClientProvider>
 ```
 
 **Why nest providers like this?** Each provider adds something to the React context — a global "environment" that child components can access. MUI components need the theme, date pickers need the locale, protected routes need auth state. The order matters: outer providers are available to inner ones.
@@ -105,219 +109,184 @@ interface OtRecord {
 
 ---
 
-## State Management: Why Zustand?
+## Two Kinds of State
 
-The app has state that multiple components need to share. For example, after login, the `Navbar`, every page, and every API call all need to know who the current user is. Passing this as props from a parent to every child would be a nightmare ("prop drilling").
+The most important architectural decision in the frontend is separating two kinds of state:
 
-**Zustand** is a global store — a central place to read and write shared state. Any component can access it directly without prop drilling.
+| Kind | Example | Where it lives |
+|---|---|---|
+| **Server state** — a copy of data owned by the backend | OT records, users, dashboard numbers | **TanStack Query** (`src/api/`) |
+| **Client state** — owned by the browser | who is logged in, which dialog is open, form inputs | **Zustand** (`authStore`) or `useState` |
 
-### The Three Stores
+Server state is hard: it can be stale, several screens show the same data, requests fail, and after a change every affected screen must refresh. A library built for exactly this beats hand-written stores that each track `isLoading`/`error` (the old stores shared one `isLoading` flag across five parallel requests, so they overwrote each other).
 
-#### `authStore.ts` — Who Is the User?
+### `authStore.ts` — The Session (Zustand)
 
 ```typescript
 {
   user: User | null,
   token: string | null,
   isAuthenticated: boolean,
-  login(credentials): Promise<void>,
-  logout(): void,
+  login(credentials): Promise<User>,
+  logout(): void,              // also clears the query cache
+  changePassword(newPassword, currentPassword?): Promise<void>,
 }
 ```
 
-This store persists to **localStorage** — if you refresh the page, you stay logged in. Zustand's `persist` middleware handles this automatically. On app load, it rehydrates from localStorage before the first render.
+It persists to **localStorage**, so a refresh keeps you logged in. It holds nothing else — no records, no users list.
 
-**Why use `fetch` for login instead of `apiClient` (Axios)?** The Axios client has an interceptor that reads the token from this store. At login time, the token doesn't exist yet, so using Axios could create a circular dependency. Using raw `fetch` for the initial login avoids that.
+### `src/api/` — Server Data (TanStack Query)
 
-#### `otStore.ts` — OT Record Data
+Each resource has a file of hooks: `otRecords.ts`, `analytics.ts`, `users.ts`. A component asks for data declaratively:
+
+```tsx
+const { data, isPending, isError, error, refetch } = useMyOtRecords(page, 10);
+```
+
+TanStack Query handles fetching, caching (keyed by `['ot-records', 'mine', { page, limit }]`), de-duplicating identical requests, keeping the previous page visible while the next loads (`keepPreviousData`), and retrying failed requests (only network/5xx errors — retrying a 403 is pointless).
+
+**Mutations and invalidation.** Writes use `useMutation`. On success they *invalidate* the affected queries, which refetch automatically:
 
 ```typescript
-{
-  otRecords: OtRecord[],     // supervisor view: all records
-  myOtRecords: OtRecord[],   // employee view: personal records only
-  isLoading: boolean,
-  error: string | null,
-  fetchOtRecords(): Promise<void>,
-  fetchMyOtRecords(): Promise<void>,
-  createOtRecord(data): Promise<void>,
-  updateOtStatus(id, status): Promise<void>,
-  deleteOtRecord(id): Promise<void>,
+export function useUpdateOtStatus() {
+  const invalidate = useInvalidateOt(); // ['ot-records'] and ['analytics']
+  return useMutation({
+    mutationFn: ({ id, status }) => apiClient.patch(`/ot-records/${id}/status`, { status }),
+    onSettled: invalidate,
+  });
 }
 ```
 
-Two separate arrays exist because supervisors and employees see fundamentally different data sets. When a supervisor approves a record, the store updates `otRecords` locally — no need to re-fetch everything from the server. This is called **optimistic UI** (you update the UI immediately, trusting the server call succeeded).
+Approving a record therefore refreshes the list, the "My OT" summary and every dashboard chart — without any component knowing about the others. Compare that with manually patching arrays in a store and hoping every copy stays in sync.
 
-#### `analyticsStore.ts` — Dashboard Charts
-
-Holds the aggregated data for each chart. Each piece of analytics data is fetched independently so they can load in parallel:
-
-```typescript
-Promise.all([
-  fetchDashboardStats(),
-  fetchDepartmentStats(),
-  fetchMonthlyStats(),
-  fetchTopUsers(),
-  fetchOtTrends(),
-])
-```
-
-`Promise.all` fires all five requests simultaneously instead of one after another. The dashboard loads as fast as the slowest single request rather than the sum of all of them.
+**Totals come from the server.** "My OT" shows totals across *all* of your records via `/ot-records/my-summary`. Computing them from the page you're looking at (10 rows) would be wrong as soon as you have more than one page.
 
 ---
 
 ## API Client: The HTTP Layer
 
-`utils/apiClient.ts` creates a single Axios instance used by all stores:
+`api/client.ts` creates the single Axios instance every hook uses:
 
 ```typescript
-const apiClient = axios.create({ baseURL: '/api' });
+export const apiClient = axios.create({ baseURL: '/api' });
 
-// Before every request: attach the JWT token
+// Before every request: attach the JWT
 apiClient.interceptors.request.use((config) => {
-  const token = authStore.getState().token;
+  const token = useAuthStore.getState().token;
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-// After every failed response: handle expired sessions
-apiClient.interceptors.response.use(null, (error) => {
-  if (error.response?.status === 401) {
-    authStore.getState().logout();
-    window.location.href = '/login';
-  }
+// After every failed response
+apiClient.interceptors.response.use(undefined, (error) => {
+  if (status === 401 && !isLoginRequest) useAuthStore.getState().logout();
+  else if (status === 403 && message === TEMP_PASSWORD_MESSAGE) useAuthStore.getState().requirePasswordChange();
   return Promise.reject(error);
 });
 ```
 
-**Why interceptors?** Without them, every single API call would need to manually attach the token and manually handle 401 errors. With interceptors, you write that logic once and it runs automatically on every request/response.
+**Why interceptors?** Write auth-token and session-expiry logic once; it runs on every request. (A 401 from the login form itself is just "wrong password", so it's excluded.)
 
-**Why `/api` as the base URL?** In development, Vite's dev server proxies `/api` to `http://localhost:3001` — so the frontend never needs to know the backend's real address. In production, this is handled by the server configuration. The frontend code never changes.
+**`getErrorMessage(error)`** turns any failure into text for the user: the API's own message (e.g. "You can only review overtime from your own department"), joined validation messages, or a "can't reach the server" message. Never swallow errors silently — every mutation in the app shows its failure.
+
+**Why `/api` as the base URL?** The frontend never knows where the backend lives. In development Vite proxies `/api` to `localhost:3001`; in Docker, Nginx does; in production, Netlify proxies `/api/*` to Render (`netlify.toml`). The code is identical everywhere, and the browser never makes a cross-origin request.
 
 ---
 
 ## Routing: How Navigation Works
 
-React Router gives the app **client-side navigation** — clicking a link changes the URL and swaps components without the browser loading a new page. This makes navigation feel instant.
+React Router gives the app **client-side navigation** — changing the URL swaps components without reloading the page.
 
 ### Route Protection
 
-The `ProtectedRoute` component is a wrapper that guards routes:
-
-```tsx
-function ProtectedRoute({ children }) {
-  const { isAuthenticated } = useAuthStore();
-  if (!isAuthenticated) return <Navigate to="/login" />;
-  return children;
-}
-```
-
-Every page that requires login is wrapped in `<ProtectedRoute>`. If `isAuthenticated` is false, the user is redirected to `/login` before the page renders.
-
-### Role-Based Redirects
-
-Beyond authentication, some routes are role-specific. Rather than a separate `RoleRoute` component, `App.tsx` uses inline conditional redirects:
+`ProtectedRoute` redirects to `/login` when there's no session. Role-specific routes redirect inline in `App.tsx`:
 
 ```tsx
 <Route path="/dashboard" element={
   <ProtectedRoute>
-    {user?.role === UserRole.SUPERVISOR
-      ? <SupervisorDashboard />
-      : <Navigate to="/my-ot" />}
+    {isSupervisorOrAdmin ? <SupervisorDashboard /> : <Navigate to="/my-ot" replace />}
   </ProtectedRoute>
 } />
 ```
 
-An employee who navigates to `/dashboard` gets silently redirected to `/my-ot`. They can't access supervisor pages — not because the UI hides the buttons (though it does), but because the routing itself redirects them away.
-
-**Defense in depth:** the Navbar shows different links based on role, AND the routes themselves redirect. Either layer alone is enough, but both together are more robust.
+**The UI is not the security boundary.** Hiding a button or redirecting a route is a convenience; the backend enforces every rule (roles, department scoping, ownership, the temporary-password lock) on every request. Assume anyone can call the API directly — the e2e tests do exactly that.
 
 ---
 
-## Components: Building Blocks
+## Project Structure
 
-### `Navbar.tsx`
+```
+src/
+  api/          client, query client, and TanStack Query hooks per resource
+  stores/       authStore (session only)
+  theme/        design tokens and MUI component overrides
+  types/        API data shapes
+  utils/        pure helpers (formatDuration, hoursBetween, monthLabel, ...)
+  components/
+    common/     StatusChip, RoleChip, UserAvatar, StatCard, PageHeader, PaginationBar, EmptyState, Loading/ErrorState
+    layout/     Sidebar, TopBar, BottomNav
+    dashboard/  one component per chart/card
+    ot/         employee OT screens (summary cards, table, list, create form)
+    ot-management/  supervisor review screens (filters, table, list, details dialog, review hook)
+    users/      admin user management
+    profile/    settings page sections
+  pages/        thin compositions that wire components to hooks
+```
 
-The Navbar reads from `authStore` to know who is logged in and shows role-appropriate navigation links. A supervisor sees "Dashboard" and "OT Management"; an employee sees "My OT Records" and "Submit OT".
+**Pages are thin.** A page decides layout and wires hooks to components; the components do the rendering. The old pages were 450–545 lines mixing fetching, forms, tables and dialogs, which made every change risky.
 
-This is a perfect example of **state-driven UI** — the Navbar doesn't receive props telling it what to show. It reads global state directly.
+**Desktop and mobile views** of a list are separate components (`OtRecordsTable` / `OtRecordsList`) fed the same props, rather than one component full of breakpoint conditionals.
 
-### `DashboardStats.tsx`
+### Design Tokens Instead of Hex Codes
 
-A pure **display component** — it receives data as props and renders stat cards. It has no internal state and makes no API calls. This is the ideal form of a component: given the same props, it always renders the same output. Easy to reuse, easy to test.
+All colors come from `theme/theme.ts`. Components reference them by name:
+
+```tsx
+<Typography color="text.secondary" />
+<Box sx={{ bgcolor: 'tint.success', color: 'success.dark' }} />
+```
+
+`tint.*` (pale backgrounds) and `series` (categorical colors for avatars/charts) are custom palette entries declared with TypeScript module augmentation so they're type-checked. Change a color once and it changes everywhere — the app previously had ~290 hard-coded hex values.
+
+### Shared Building Blocks
+
+- **`StatusChip` / `RoleChip`** — one definition of what "Pending" or "Admin" looks like.
+- **`UserAvatar`** — color picked from the user's id, so a person keeps the same color on every screen (not their row position).
+- **`LoadingState` / `ErrorState` / `EmptyState`** — every data view handles all three; an empty chart says "No data yet" instead of showing blank axes.
 
 ---
 
 ## Pages: The Main Views
 
-### `Login.tsx` — The Entry Point
+### `Login.tsx`
 
-The login page manages its own local state (email, password, error, showPassword) using React's `useState`. This state doesn't need to be global — it only matters while the form is visible.
-
-```typescript
-const [email, setEmail] = useState('');
-const [password, setPassword] = useState('');
-const [error, setError] = useState('');
-```
-
-On submit, it calls `authStore.login()`, which handles the API call. If it succeeds, the store updates `isAuthenticated = true` and the component navigates to `/dashboard`. If it fails, the caught error is shown to the user.
+Local `useState` for the form (email, password, error, submitting) — nobody else needs it. It calls `authStore.login()` and shows the server's message on failure, with a friendlier message for rate limiting (HTTP 429). If the user still has a temporary password it shows `ResetPasswordForm` instead of navigating — and because that flag is in the persisted store, the reset screen survives a page reload.
 
 ### `CreateOtRecord.tsx` — Forms and Derived State
 
-The most form-heavy page. Key ideas:
+**Derived state:** the duration preview is computed from the start and end times with `hoursBetween()`, never stored. It uses the same rule as the server (an end time at or before the start crosses midnight), so what you see is what gets saved.
 
-**Derived state:** `duration` is never stored separately — it's calculated on the fly from `startTime` and `endTime` using dayjs. Derived values should never be stored in state; compute them from existing state instead.
+**The client never sends derived data.** The request contains `date`, `startTime`, `endTime`, `reason` — not `duration`. The server calculates it; otherwise anyone could claim 12 hours for a 1-hour shift.
 
-```typescript
-const duration = endTime && startTime
-  ? Math.round(endTime.diff(startTime, 'minute') / 60 * 100) / 100
-  : 0;
-```
-
-**Validation on submit, not on change:** Errors only show after the user tries to submit, not while they're typing. This avoids showing "start time required" the moment the form loads.
-
-**Controlled components:** Every input's value is tied to state. React owns the input value — you can't type something that React doesn't know about. This makes the form fully serializable and resettable.
+**Validation on submit, not on change**, and server errors are shown too — client-side validation is for convenience, the server is the authority.
 
 ### `MyOtRecords.tsx` — The Employee View
 
-Fetches `myOtRecords` from the OT store on mount using `useEffect`:
-
-```typescript
-useEffect(() => {
-  fetchMyOtRecords();
-}, []);  // empty array = run once when component mounts
-```
-
-**Why not fetch in the store?** The store holds data, but the component decides *when* to fetch it. This separation means the store can be reused across components — the component is in charge of its own data lifecycle.
-
-**Summary statistics** at the top of the page are computed from `myOtRecords` directly — no separate API call needed:
-
-```typescript
-const approvedHours = myOtRecords
-  .filter(r => r.status === OtStatus.APPROVED)
-  .reduce((sum, r) => sum + Number(r.duration), 0);
-```
+Two queries: `useMyOtSummary()` for the cards and `useMyOtRecords(page, 10)` for the table. No `useEffect` — the query hooks fetch when their key (the page number) changes. Pending records can be deleted after a confirmation dialog.
 
 ### `OtRecordManagement.tsx` — The Supervisor View
 
-This page manages a local `selectedRecord` state for the detail dialog. When a supervisor clicks "View Details", the record is stored locally and the dialog opens. This is appropriate local state — it doesn't need to live in the global store because no other component cares about it.
-
-Approve/Reject actions call `updateOtStatus()` from the store, which patches the record on the server and updates the `otRecords` array in place. The table re-renders automatically because Zustand triggers a re-render when store state changes.
+- **Search runs on the server** (debounced 300 ms) across all pages — filtering only the rows on screen would silently miss matches on other pages.
+- Changing the tab or search resets to page 1.
+- `useReviewOtRecord` tracks which rows have an approval in flight and shows failures (e.g. 409 "already approved") in a snackbar. Approve/Reject is hidden on your own records because the API forbids it.
 
 ### `SupervisorDashboard.tsx` — Charts and Analytics
 
-Each chart uses a Recharts component (`BarChart`, `PieChart`, `LineChart`). Recharts is built for React — you compose charts the same way you compose components:
+Each card is its own component with its own query, so one slow or failing chart doesn't block the others. Charts use Recharts with colors read from the theme (`useTheme().palette`).
 
-```tsx
-<BarChart data={monthlyStats}>
-  <XAxis dataKey="monthName" />
-  <YAxis />
-  <Tooltip />
-  <Bar dataKey="count" name="Requests" fill="#1976d2" />
-  <Bar dataKey="totalHours" name="Hours" fill="#42a5f5" />
-</BarChart>
-```
+**No invented numbers.** Every figure comes from the API — the old dashboard showed hard-coded "+12%" style trends. "vs last month" in Top Users is computed by the server, and shows "New" when there's nothing to compare.
 
-**Data transformation before rendering:** Raw API data (month numbers like `1`, `2`, `3`) gets mapped to display values (`'Jan'`, `'Feb'`, `'Mar'`) before being passed to the chart. Charts shouldn't know about your data format — you transform it into the shape they expect.
+**Data transformation before rendering:** the API returns `{ year, month }`; `monthLabel()` turns that into "Sep" (or "Sep '26" when the range spans two years) before it reaches the chart.
 
 ---
 
@@ -341,7 +310,7 @@ server: {
 
 When the browser requests `/api/auth/login`, Vite intercepts it and forwards it to `http://localhost:3001/api/auth/login`. From the browser's perspective, it's talking to the same origin. No CORS issue.
 
-In production, a real reverse proxy (Nginx) does the same job.
+In Docker, Nginx does the same job; in production, Netlify proxies `/api/*` to the Render backend.
 
 ---
 
@@ -350,21 +319,18 @@ In production, a real reverse proxy (Nginx) does the same job.
 Trace what happens when an employee submits an OT request:
 
 ```
-1. User fills out CreateOtRecord form, clicks Submit
-2. Component validates: date not in future, end > start, duration 0.25-12
-3. Component calls otStore.createOtRecord(formData)
-4. Store calls apiClient.post('/ot-records', formData)
-5. Axios interceptor attaches Bearer token to request header
-6. Backend receives request, JwtAuthGuard validates token
-7. ValidationPipe checks CreateOtRecordDto rules
-8. OtRecordsService creates record in DB with status=PENDING
-9. Backend returns the new OtRecord
-10. Store pushes new record into myOtRecords array
-11. React re-renders MyOtRecords (if it was visible) automatically
-12. Component shows success message, resets form
+1. User fills in the form; the duration preview is derived from the times
+2. On submit the component validates (date not in future, 15 min to 12 h, reason)
+3. useCreateOtRecord().mutate({ date, startTime, endTime, reason })
+4. apiClient.post('/ot-records', ...) — the interceptor attaches the Bearer token
+5. Backend: JwtAuthGuard loads the user, ValidationPipe checks the DTO
+6. OtRecordsService computes the duration and saves the record as PENDING
+7. The mutation succeeds and invalidates ['ot-records'] and ['analytics']
+8. Every mounted query with those keys refetches (list, summary, dashboard)
+9. The form navigates to /my-ot, which shows a "submitted" snackbar
 ```
 
-Every step is handled by a dedicated layer. The component doesn't know about HTTP. The store doesn't know about form validation. The API client doesn't know about business rules. Each piece does one thing.
+Each layer does one thing: the component owns the form, the hook owns the request and cache, the client owns auth headers, and the server owns the rules.
 
 ---
 
@@ -372,14 +338,14 @@ Every step is handled by a dedicated layer. The component doesn't know about HTT
 
 1. **State drives the UI.** You never manually update the DOM. You update state, and React figures out what changed.
 
-2. **Local state vs. global state.** If only one component needs it, use `useState`. If multiple components share it, put it in a Zustand store.
+2. **Server state and client state are different problems.** Server data goes through TanStack Query; the session goes in Zustand; UI-only state stays in `useState`.
 
-3. **Interceptors are middleware for HTTP.** Write auth token logic once, apply everywhere.
+3. **Invalidate, don't hand-patch.** After a write, invalidate the affected queries and let them refetch.
 
-4. **Derived values are computed, not stored.** Calculate `duration` from `startTime` and `endTime` — don't maintain a third `useState` that can get out of sync.
+4. **Derived values are computed, not stored — and not sent.** The duration is derived for display and computed again by the server.
 
-5. **`useEffect` controls when you fetch.** The empty dependency array `[]` means "run once on mount." Dependencies in the array mean "re-run when these change."
+5. **Always handle loading, error and empty.** A blank chart or a silently failed button is a bug.
 
-6. **Route protection has two layers.** The Navbar hides links visually; the route itself redirects if someone navigates directly. Both matter.
+6. **Use the theme, not hex codes.** Colors are tokens with names.
 
-7. **The Vite proxy is a development convenience.** In production, a real server handles routing. The frontend code stays identical.
+7. **The UI is not the security boundary.** Hiding buttons improves the experience; the backend enforces the rules.
