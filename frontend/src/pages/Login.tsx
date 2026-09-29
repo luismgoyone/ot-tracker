@@ -17,7 +17,6 @@ import {
   Visibility,
   VisibilityOff,
   AccessTime,
-  Info,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
@@ -138,7 +137,7 @@ export const Login: React.FC = () => {
                 </Typography>
                 <TextField
                   fullWidth
-                  placeholder="supervisor@company.com"
+                  placeholder="you@company.com"
                   type="email"
                   value={credentials.email}
                   onChange={handleChange('email')}
@@ -214,28 +213,6 @@ export const Login: React.FC = () => {
                 {isLoading ? 'Signing In...' : 'Sign in'}
               </Button>
             </form>
-
-            {/* Demo Credentials */}
-            <Box sx={{ mt: 3, p: 2, bgcolor: '#EFF6FF', borderRadius: 2, border: '1px solid #BFDBFE' }}>
-              <Box display="flex" alignItems="center" gap={0.75} mb={1}>
-                <Info sx={{ fontSize: 14, color: '#3B82F6' }} />
-                <Typography variant="caption" fontWeight={700} color="#1D4ED8" letterSpacing="0.05em">
-                  DEMO CREDENTIALS
-                </Typography>
-              </Box>
-              <Box display="flex" justifyContent="space-between">
-                <Typography variant="caption" color="#374151">Supervisor:</Typography>
-                <Typography variant="caption" color="#374151" fontWeight={500}>supervisor@company.com</Typography>
-              </Box>
-              <Box display="flex" justifyContent="space-between">
-                <Typography variant="caption" color="#374151">Employee:</Typography>
-                <Typography variant="caption" color="#374151" fontWeight={500}>employee@company.com</Typography>
-              </Box>
-              <Box display="flex" justifyContent="space-between">
-                <Typography variant="caption" color="#374151">Password:</Typography>
-                <Typography variant="caption" color="#374151" fontWeight={500}>password123</Typography>
-              </Box>
-            </Box>
           </>
         )}
       </Paper>

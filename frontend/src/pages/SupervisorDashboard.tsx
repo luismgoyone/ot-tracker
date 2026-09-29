@@ -31,6 +31,7 @@ import {
 import { TrendingUp, TrendingDown } from '@mui/icons-material';
 import { useAnalyticsStore } from '../stores/analyticsStore';
 import { DashboardStats } from '../components/DashboardStats';
+import { EmptyState } from '../components/EmptyState';
 
 const COLORS = ['#6366F1', '#8B5CF6', '#EC4899', '#3B82F6', '#10B981', '#F59E0B'];
 
@@ -84,6 +85,10 @@ export const SupervisorDashboard: React.FC = () => {
 
   const totalDeptHours = departmentData.reduce((sum, d) => sum + d.value, 0);
 
+  const hasMonthlyData = monthlyData.some(d => d.count > 0 || d.hours > 0);
+  const hasTrendsData = trendsData.some(d => d.count > 0 || d.hours > 0);
+  const hasDepartmentData = totalDeptHours > 0;
+
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>
       {/* Stat Cards */}
@@ -105,18 +110,22 @@ export const SupervisorDashboard: React.FC = () => {
                   Last 6 Months
                 </Typography>
               </Box>
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={monthlyData} barSize={18} barGap={4}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.12)' }}
-                  />
-                  <Bar dataKey="count" fill="#6366F1" name="OT Count" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="hours" fill="#C4B5FD" name="Total Hours" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {!hasMonthlyData ? (
+                <EmptyState height={240} description="No OT records in the last 6 months." />
+              ) : (
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={monthlyData} barSize={18} barGap={4}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 12, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.12)' }}
+                    />
+                    <Bar dataKey="count" fill="#6366F1" name="OT Count" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="hours" fill="#C4B5FD" name="Total Hours" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -128,57 +137,63 @@ export const SupervisorDashboard: React.FC = () => {
               <Typography variant="subtitle1" fontWeight={700} color="#1E293B" mb={2}>
                 OT Hours by Dept
               </Typography>
-              <Box position="relative" display="flex" justifyContent="center">
-                <ResponsiveContainer width="100%" height={180}>
-                  <PieChart>
-                    <Pie
-                      data={departmentData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={55}
-                      outerRadius={80}
-                      dataKey="value"
-                      paddingAngle={3}
+              {!hasDepartmentData ? (
+                <EmptyState height={240} description="Department hours will appear once OT is approved." />
+              ) : (
+                <>
+                  <Box position="relative" display="flex" justifyContent="center">
+                    <ResponsiveContainer width="100%" height={180}>
+                      <PieChart>
+                        <Pie
+                          data={departmentData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={80}
+                          dataKey="value"
+                          paddingAngle={3}
+                        >
+                          {departmentData.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value: number) => [`${value} hrs`, 'Total Hours']} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        textAlign: 'center',
+                        pointerEvents: 'none',
+                      }}
                     >
-                      {departmentData.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value: number) => [`${value} hrs`, 'Total Hours']} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    textAlign: 'center',
-                    pointerEvents: 'none',
-                  }}
-                >
-                  <Typography variant="h6" fontWeight={700} color="#1E293B">
-                    {totalDeptHours.toFixed(1)}k
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Total Hours
-                  </Typography>
-                </Box>
-              </Box>
-              <Box mt={1}>
-                {departmentData.slice(0, 3).map((dept, index) => {
-                  const pct = totalDeptHours > 0 ? Math.round((dept.value / totalDeptHours) * 100) : 0;
-                  return (
-                    <Box key={index} display="flex" alignItems="center" justifyContent="space-between" py={0.5}>
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: COLORS[index % COLORS.length] }} />
-                        <Typography variant="caption" color="#475569">{dept.name}</Typography>
-                      </Box>
-                      <Typography variant="caption" fontWeight={600} color="#1E293B">{pct}%</Typography>
+                      <Typography variant="h6" fontWeight={700} color="#1E293B">
+                        {totalDeptHours.toFixed(1)}k
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Total Hours
+                      </Typography>
                     </Box>
-                  );
-                })}
-              </Box>
+                  </Box>
+                  <Box mt={1}>
+                    {departmentData.slice(0, 3).map((dept, index) => {
+                      const pct = totalDeptHours > 0 ? Math.round((dept.value / totalDeptHours) * 100) : 0;
+                      return (
+                        <Box key={index} display="flex" alignItems="center" justifyContent="space-between" py={0.5}>
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: COLORS[index % COLORS.length] }} />
+                            <Typography variant="caption" color="#475569">{dept.name}</Typography>
+                          </Box>
+                          <Typography variant="caption" fontWeight={600} color="#1E293B">{pct}%</Typography>
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                </>
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -196,30 +211,34 @@ export const SupervisorDashboard: React.FC = () => {
                 </Typography>
                 <Chip label="Active" size="small" sx={{ bgcolor: '#ECFDF5', color: '#10B981', fontWeight: 600 }} />
               </Box>
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={trendsData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.12)' }} />
-                  <Line
-                    type="monotone"
-                    dataKey="hours"
-                    stroke="#6366F1"
-                    strokeWidth={2.5}
-                    dot={false}
-                    name="Daily Hours"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="count"
-                    stroke="#C4B5FD"
-                    strokeWidth={2}
-                    dot={false}
-                    name="Daily Count"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {!hasTrendsData ? (
+                <EmptyState height={200} description="No OT records in the last 30 days." />
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={trendsData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.12)' }} />
+                    <Line
+                      type="monotone"
+                      dataKey="hours"
+                      stroke="#6366F1"
+                      strokeWidth={2.5}
+                      dot={false}
+                      name="Daily Hours"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#C4B5FD"
+                      strokeWidth={2}
+                      dot={false}
+                      name="Daily Count"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -231,73 +250,77 @@ export const SupervisorDashboard: React.FC = () => {
               <Typography variant="subtitle1" fontWeight={700} color="#1E293B" mb={2}>
                 Top OT Users (This Month)
               </Typography>
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Employee</TableCell>
-                      <TableCell align="right">Hours</TableCell>
-                      <TableCell align="right">Trend</TableCell>
-                      <TableCell align="right">Action</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {topUsers.map((user, index) => {
-                      const trend = index % 2 === 0 ? '+12%' : '-4%';
-                      const trendUp = index % 2 === 0;
-                      return (
-                        <TableRow key={index}>
-                          <TableCell>
-                            <Box display="flex" alignItems="center" gap={1}>
-                              <Avatar
-                                sx={{
-                                  width: 28,
-                                  height: 28,
-                                  fontSize: '0.65rem',
-                                  bgcolor: AVATAR_COLORS[index % AVATAR_COLORS.length],
-                                  fontWeight: 700,
-                                }}
-                              >
-                                {getInitials(user.name)}
-                              </Avatar>
-                              <Box>
-                                <Typography variant="caption" fontWeight={600} color="#1E293B" display="block">
-                                  {user.name}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
-                                  {user.departmentName}
+              {topUsers.length === 0 ? (
+                <EmptyState height={200} description="No OT logged this month yet." />
+              ) : (
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Employee</TableCell>
+                        <TableCell align="right">Hours</TableCell>
+                        <TableCell align="right">Trend</TableCell>
+                        <TableCell align="right">Action</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {topUsers.map((user, index) => {
+                        const trend = index % 2 === 0 ? '+12%' : '-4%';
+                        const trendUp = index % 2 === 0;
+                        return (
+                          <TableRow key={index}>
+                            <TableCell>
+                              <Box display="flex" alignItems="center" gap={1}>
+                                <Avatar
+                                  sx={{
+                                    width: 28,
+                                    height: 28,
+                                    fontSize: '0.65rem',
+                                    bgcolor: AVATAR_COLORS[index % AVATAR_COLORS.length],
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  {getInitials(user.name)}
+                                </Avatar>
+                                <Box>
+                                  <Typography variant="caption" fontWeight={600} color="#1E293B" display="block">
+                                    {user.name}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                                    {user.departmentName}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography variant="caption" fontWeight={600} color="#1E293B">
+                                {Number(user.totalHours || 0).toFixed(1)}h
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Box display="flex" alignItems="center" justifyContent="flex-end" gap={0.25}>
+                                {trendUp ? (
+                                  <TrendingUp sx={{ fontSize: 14, color: '#10B981' }} />
+                                ) : (
+                                  <TrendingDown sx={{ fontSize: 14, color: '#EF4444' }} />
+                                )}
+                                <Typography variant="caption" color={trendUp ? 'success.main' : 'error.main'} fontWeight={600}>
+                                  {trend}
                                 </Typography>
                               </Box>
-                            </Box>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography variant="caption" fontWeight={600} color="#1E293B">
-                              {Number(user.totalHours || 0).toFixed(1)}h
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Box display="flex" alignItems="center" justifyContent="flex-end" gap={0.25}>
-                              {trendUp ? (
-                                <TrendingUp sx={{ fontSize: 14, color: '#10B981' }} />
-                              ) : (
-                                <TrendingDown sx={{ fontSize: 14, color: '#EF4444' }} />
-                              )}
-                              <Typography variant="caption" color={trendUp ? 'success.main' : 'error.main'} fontWeight={600}>
-                                {trend}
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography variant="caption" color="primary" sx={{ cursor: 'pointer', fontWeight: 600 }}>
+                                Review
                               </Typography>
-                            </Box>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography variant="caption" color="primary" sx={{ cursor: 'pointer', fontWeight: 600 }}>
-                              Review
-                            </Typography>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
             </CardContent>
           </Card>
         </Grid>
