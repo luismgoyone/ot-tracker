@@ -27,6 +27,7 @@
     "migration:show": "npm run typeorm -- migration:show",
     "seed": "node dist/database/seed.js",
     "seed:dev": "ts-node src/database/seed.ts",
+    "demo:refresh": "ts-node src/database/refresh-demo.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

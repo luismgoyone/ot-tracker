@@ -4,7 +4,7 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
-import { SEED_SQL } from '../src/database/seed-data';
+import { SEED_SQL, refreshDemoRecords } from '../src/database/seed-data';
 
 /**
  * End-to-end tests against a real Postgres database (DATABASE_NAME, default ot_tracker_test).
@@ -301,6 +301,27 @@ describe('OT Tracker API (e2e)', () => {
         expect(res.body).toMatchObject({ status: 'approved', approvedBy: ids.supervisor });
         await api().patch(`/api/ot-records/${id}/status`).set(as('supervisor')).send({ status: 'rejected' }).expect(409);
       });
+    });
+  });
+
+  describe('demo data refresh', () => {
+    it('replaces OT records with recent data and keeps users', async () => {
+      const [before] = await db.query(`SELECT COUNT(*)::int AS users FROM users`);
+      const { records } = await db.transaction((manager) => refreshDemoRecords(manager));
+      const [after] = await db.query(
+        `SELECT COUNT(*)::int AS users,
+                (SELECT MAX(CURRENT_DATE - date) FROM ot_records) AS oldest,
+                (SELECT COUNT(*) FROM ot_records WHERE status = 'approved' AND date >= CURRENT_DATE - 30)::int AS recent_approved,
+                (SELECT COUNT(*) FROM ot_records WHERE status = 'pending')::int AS pending,
+                (SELECT COUNT(*) FROM ot_records WHERE status <> 'pending' AND approved_by IS NULL)::int AS missing_approver
+         FROM users`,
+      );
+      expect(records).toBeGreaterThan(50);
+      expect(after.users).toBe(before.users);
+      expect(after.oldest).toBeLessThan(183);
+      expect(after.recent_approved).toBeGreaterThan(0);
+      expect(after.pending).toBeGreaterThan(0);
+      expect(after.missing_approver).toBe(0);
     });
   });
 
