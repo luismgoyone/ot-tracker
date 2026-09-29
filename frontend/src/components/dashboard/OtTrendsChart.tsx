@@ -1,6 +1,7 @@
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useOtTrends } from '../../api/analytics';
 import { formatDate } from '../../utils/format';
+import { ChartTooltip } from './ChartTooltip';
 import { DashboardCard } from './DashboardCard';
 import { useChartTheme } from './chartTheme';
 
@@ -10,7 +11,7 @@ const HEIGHT = 200;
 /** Approved OT per day over the last 30 days. */
 export const OtTrendsChart = () => {
   const query = useOtTrends(DAYS);
-  const { palette, gridStroke, axisTick, tooltipStyle } = useChartTheme();
+  const { palette, gridStroke, axisTick, lineCursor } = useChartTheme();
 
   const data = (query.data ?? []).map((day) => ({
     date: formatDate(day.date, 'MMM D'),
@@ -39,7 +40,7 @@ export const OtTrendsChart = () => {
               minTickGap={16}
             />
             <YAxis tick={{ ...axisTick, fontSize: 11 }} axisLine={false} tickLine={false} />
-            <Tooltip contentStyle={tooltipStyle} />
+            <Tooltip content={<ChartTooltip kinds={{ count: 'records', hours: 'hours' }} />} cursor={lineCursor} />
             <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
             <Line
               type="monotone"
@@ -47,6 +48,7 @@ export const OtTrendsChart = () => {
               stroke={palette.primary.main}
               strokeWidth={2.5}
               dot={false}
+              activeDot={{ r: 4, strokeWidth: 0 }}
               name="Hours"
             />
             <Line
@@ -55,6 +57,7 @@ export const OtTrendsChart = () => {
               stroke={palette.secondary.main}
               strokeWidth={2}
               dot={false}
+              activeDot={{ r: 4, strokeWidth: 0 }}
               name="Records"
             />
           </LineChart>

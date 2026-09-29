@@ -2,6 +2,7 @@ import { Box, Typography } from '@mui/material';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { useDepartmentStats } from '../../api/analytics';
 import { DepartmentStats } from '../../types';
+import { ChartTooltip } from './ChartTooltip';
 import { DashboardCard } from './DashboardCard';
 import { formatHours, useChartTheme } from './chartTheme';
 
@@ -65,7 +66,7 @@ const toSlices = (departments: DepartmentStats[], colors: string[], otherColor: 
 /** Share of approved OT hours by department. */
 export const DepartmentHoursChart = () => {
   const query = useDepartmentStats();
-  const { palette, tooltipStyle } = useChartTheme();
+  const { palette } = useChartTheme();
   const slices = toSlices(query.data ?? [], palette.series, palette.grey[300]);
   const totalHours = slices.reduce((sum, s) => sum + s.hours, 0);
 
@@ -96,7 +97,7 @@ export const DepartmentHoursChart = () => {
                     <Cell key={slice.key} fill={slice.color} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [formatHours(value), 'Hours']} />
+                <Tooltip content={<ChartTooltip />} />
               </PieChart>
             </ResponsiveContainer>
             <Box
