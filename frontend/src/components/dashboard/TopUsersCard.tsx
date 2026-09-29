@@ -37,7 +37,8 @@ const ChangeIndicator = ({ user }: { user: TopUser }) => {
   }
 
   const { changePercent } = user;
-  const color = changePercent > 0 ? 'success.main' : changePercent < 0 ? 'error.main' : 'text.secondary';
+  // More overtime than last month is a warning for a supervisor, so it's shown in red.
+  const color = changePercent > 0 ? 'error.main' : changePercent < 0 ? 'success.main' : 'text.secondary';
   const Icon = changePercent > 0 ? TrendingUp : changePercent < 0 ? TrendingDown : TrendingFlat;
 
   return (
