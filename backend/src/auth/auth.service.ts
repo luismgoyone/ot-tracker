@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
@@ -6,6 +6,7 @@ import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { User } from '../users/entities/user.entity';
+import { AuthUser } from './auth-user';
 
 @Injectable()
 export class AuthService {
@@ -19,7 +20,7 @@ export class AuthService {
     if (!user) return null;
     if (!user.isActive) return null;
     if (await bcrypt.compare(password, user.password)) {
-      const { password: _pw, ...result } = user;
+      const { password: _password, ...result } = user;
       return result;
     }
     return null;
@@ -31,15 +32,8 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const payload = {
-      email: user.email,
-      sub: user.id,
-      role: user.role,
-      departmentId: user.departmentId,
-    };
-
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: this.jwtService.sign({ sub: user.id }),
       user: {
         id: user.id,
         email: user.email,
@@ -52,8 +46,21 @@ export class AuthService {
     };
   }
 
-  async changePassword(userId: number, dto: ChangePasswordDto): Promise<void> {
-    await this.usersService.updatePassword(userId, dto.newPassword);
+  async changePassword(authUser: AuthUser, dto: ChangePasswordDto): Promise<void> {
+    const user = await this.usersService.findByEmail(authUser.email);
+    if (!user) throw new UnauthorizedException();
+
+    // A temporary password was just used to log in, so it doesn't need re-entering.
+    if (!user.mustChangePassword) {
+      if (!dto.currentPassword || !(await bcrypt.compare(dto.currentPassword, user.password))) {
+        throw new BadRequestException('Current password is incorrect');
+      }
+    }
+    if (await bcrypt.compare(dto.newPassword, user.password)) {
+      throw new BadRequestException('New password must be different from the current one');
+    }
+
+    await this.usersService.updatePassword(user.id, dto.newPassword);
   }
 
   async getMe(userId: number): Promise<User | null> {
@@ -62,9 +69,5 @@ export class AuthService {
 
   async updateMe(userId: number, dto: UpdateProfileDto): Promise<User> {
     return this.usersService.updateUser(userId, dto);
-  }
-
-  async validateToken(payload: { sub: number }): Promise<User | null> {
-    return this.usersService.findOne(payload.sub);
   }
 }

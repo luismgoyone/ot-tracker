@@ -1,22 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { FindOptionsWhere, Repository } from 'typeorm';
 import { OtRecord } from './entities/ot-record.entity';
 import { CreateOtRecordDto } from './dto/create-ot-record.dto';
 import { UpdateOtRecordDto } from './dto/update-ot-record.dto';
-import { OtStatus } from '../common/enums';
+import { UpdateOtStatusDto } from './dto/update-ot-status.dto';
+import { FindOtRecordsQueryDto } from './dto/find-ot-records-query.dto';
+import { OtStatus, UserRole } from '../common/enums';
+import { PaginatedResult, PaginationQueryDto, paginate } from '../common/dto/pagination-query.dto';
+import { AuthUser } from '../auth/auth-user';
+import { calculateOtHours } from './duration';
 
-export interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
-export interface PaginatedResult<T> {
-  data: T[];
-  meta: PaginationMeta;
-}
+const RELATIONS = { user: { department: true } };
 
 @Injectable()
 export class OtRecordsService {
@@ -25,83 +20,105 @@ export class OtRecordsService {
     private otRecordsRepository: Repository<OtRecord>,
   ) {}
 
-  async create(createOtRecordDto: CreateOtRecordDto, userId: number): Promise<OtRecord> {
+  async create(dto: CreateOtRecordDto, userId: number): Promise<OtRecord> {
     const otRecord = this.otRecordsRepository.create({
-      ...createOtRecordDto,
+      ...dto,
+      date: dto.date as unknown as Date,
+      duration: calculateOtHours(dto.startTime, dto.endTime),
       userId,
     });
-    return this.otRecordsRepository.save(otRecord);
+    const saved = await this.otRecordsRepository.save(otRecord);
+    return this.findOneOrFail(saved.id);
   }
 
-  async findAll(page = 1, limit = 10, status?: OtStatus): Promise<PaginatedResult<OtRecord>> {
-    const where = status ? { status } : {};
+  /** Supervisors only see their own department; admins can see all or filter by department. */
+  async findAll(query: FindOtRecordsQueryDto, actor: AuthUser): Promise<PaginatedResult<OtRecord>> {
+    const where: FindOptionsWhere<OtRecord> = {};
+    if (query.status) where.status = query.status;
+
+    const departmentId = actor.role === UserRole.ADMIN ? query.departmentId : actor.departmentId;
+    if (departmentId !== undefined) where.user = { departmentId };
+
     const [data, total] = await this.otRecordsRepository.findAndCount({
       where,
-      relations: ['user', 'user.department'],
+      relations: RELATIONS,
       order: { createdAt: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
+      skip: (query.page - 1) * query.limit,
+      take: query.limit,
     });
-    return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+    return paginate(data, total, query);
   }
 
-  async findByUser(userId: number, page = 1, limit = 10): Promise<PaginatedResult<OtRecord>> {
+  async findByUser(userId: number, query: PaginationQueryDto): Promise<PaginatedResult<OtRecord>> {
     const [data, total] = await this.otRecordsRepository.findAndCount({
       where: { userId },
-      relations: ['user', 'user.department'],
-      order: { date: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
+      relations: RELATIONS,
+      order: { date: 'DESC', createdAt: 'DESC' },
+      skip: (query.page - 1) * query.limit,
+      take: query.limit,
     });
-    return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+    return paginate(data, total, query);
   }
 
-  async findByDepartment(departmentId: number): Promise<OtRecord[]> {
-    return this.otRecordsRepository.find({
-      where: { user: { departmentId } },
-      relations: ['user', 'user.department'],
-      order: { createdAt: 'DESC' },
-    });
-  }
+  /**
+   * Approve or reject a pending record. Supervisors may only decide on records from
+   * their own department, and nobody may decide on their own overtime.
+   */
+  async updateStatus(id: number, dto: UpdateOtStatusDto, actor: AuthUser): Promise<OtRecord> {
+    const record = await this.findOneOrFail(id);
 
-  async findByDateRange(startDate: Date, endDate: Date): Promise<OtRecord[]> {
-    return this.otRecordsRepository.find({
-      where: {
-        date: Between(startDate, endDate),
-      },
-      relations: ['user', 'user.department'],
-      order: { date: 'DESC' },
-    });
-  }
+    if (record.userId === actor.id) {
+      throw new ForbiddenException('You cannot approve or reject your own overtime');
+    }
+    if (actor.role !== UserRole.ADMIN && record.user.departmentId !== actor.departmentId) {
+      throw new ForbiddenException('You can only review overtime from your own department');
+    }
+    if (record.status !== OtStatus.PENDING) {
+      throw new ConflictException(`This record has already been ${record.status}`);
+    }
 
-  async updateStatus(id: number, status: OtStatus, approvedBy?: number): Promise<OtRecord> {
     await this.otRecordsRepository.update(id, {
-      status,
-      approvedBy,
+      status: dto.status,
+      approvedBy: actor.id,
+      ...(dto.comments !== undefined && { comments: dto.comments }),
     });
-    const otRecord = await this.otRecordsRepository.findOne({
-      where: { id },
-      relations: ['user', 'user.department'],
-    });
-    if (!otRecord) {
-      throw new Error(`OT Record with id ${id} not found`);
-    }
-    return otRecord;
+    return this.findOneOrFail(id);
   }
 
-  async update(id: number, updateOtRecordDto: UpdateOtRecordDto): Promise<OtRecord> {
-    await this.otRecordsRepository.update(id, updateOtRecordDto);
-    const otRecord = await this.otRecordsRepository.findOne({
-      where: { id },
-      relations: ['user', 'user.department'],
+  /** Owners can edit their own records while they're still pending. */
+  async update(id: number, dto: UpdateOtRecordDto, actor: AuthUser): Promise<OtRecord> {
+    const record = await this.findOneOrFail(id);
+    this.assertCanModify(record, actor);
+
+    const startTime = dto.startTime ?? record.startTime;
+    const endTime = dto.endTime ?? record.endTime;
+    await this.otRecordsRepository.update(id, {
+      ...dto,
+      ...(dto.date && { date: dto.date as unknown as Date }),
+      duration: calculateOtHours(startTime, endTime),
     });
-    if (!otRecord) {
-      throw new Error(`OT Record with id ${id} not found`);
-    }
-    return otRecord;
+    return this.findOneOrFail(id);
   }
 
-  async remove(id: number): Promise<void> {
+  /** Owners can delete their own pending records; admins can delete any record. */
+  async remove(id: number, actor: AuthUser): Promise<void> {
+    const record = await this.findOneOrFail(id);
+    if (actor.role !== UserRole.ADMIN) this.assertCanModify(record, actor);
     await this.otRecordsRepository.delete(id);
+  }
+
+  private assertCanModify(record: OtRecord, actor: AuthUser): void {
+    if (record.userId !== actor.id) {
+      throw new ForbiddenException('You can only change your own overtime records');
+    }
+    if (record.status !== OtStatus.PENDING) {
+      throw new ConflictException(`This record has already been ${record.status} and can no longer be changed`);
+    }
+  }
+
+  private async findOneOrFail(id: number): Promise<OtRecord> {
+    const record = await this.otRecordsRepository.findOne({ where: { id }, relations: RELATIONS });
+    if (!record) throw new NotFoundException(`OT record ${id} not found`);
+    return record;
   }
 }

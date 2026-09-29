@@ -1,40 +1,41 @@
-import { Controller, Request, Post, Get, Patch, UseGuards, Body } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { Controller, Post, Get, Patch, Body, HttpCode } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { Public } from './decorators/public.decorator';
+import { AllowPendingPasswordChange } from './decorators/allow-pending-password-change.decorator';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { AuthUser } from './auth-user';
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('login')
-  async login(@Body() loginDto: LoginDto) {
+  @HttpCode(200)
+  login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @AllowPendingPasswordChange()
   @Post('change-password')
-  changePassword(
-    @Request() req: { user: { userId: number } },
-    @Body() dto: ChangePasswordDto,
-  ) {
-    return this.authService.changePassword(req.user.userId, dto);
+  @HttpCode(204)
+  changePassword(@CurrentUser() user: AuthUser, @Body() dto: ChangePasswordDto) {
+    return this.authService.changePassword(user, dto);
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @AllowPendingPasswordChange()
   @Get('me')
-  getMe(@Request() req: { user: { userId: number } }) {
-    return this.authService.getMe(req.user.userId);
+  getMe(@CurrentUser() user: AuthUser) {
+    return this.authService.getMe(user.id);
   }
 
-  @UseGuards(AuthGuard('jwt'))
   @Patch('me')
-  updateMe(
-    @Request() req: { user: { userId: number } },
-    @Body() dto: UpdateProfileDto,
-  ) {
-    return this.authService.updateMe(req.user.userId, dto);
+  updateMe(@CurrentUser() user: AuthUser, @Body() dto: UpdateProfileDto) {
+    return this.authService.updateMe(user.id, dto);
   }
 }

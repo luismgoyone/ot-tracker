@@ -1,142 +1,176 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { OtRecord } from '../ot-records/entities/ot-record.entity';
-import { User } from '../users/entities/user.entity';
-import { Department } from '../departments/entities/department.entity';
+import { ConfigService } from '@nestjs/config';
+import { DataSource } from 'typeorm';
 import { OtStatus, UserRole } from '../common/enums';
+import { AuthUser } from '../auth/auth-user';
+
+const MONTHS_SHOWN = 6;
+
+/**
+ * Builds the shared WHERE clause: department scope for non-admins. Parameters are
+ * positional, so callers pass `params` through and append their own after it.
+ */
+function scope(actor: AuthUser, params: unknown[]): string {
+  if (actor.role === UserRole.ADMIN) return '';
+  params.push(actor.departmentId);
+  return `AND u.department_id = $${params.length}`;
+}
 
 @Injectable()
 export class AnalyticsService {
+  /** IANA timezone used to decide what "today" and "this month" mean. */
+  private readonly timezone: string;
+
   constructor(
-    @InjectRepository(OtRecord)
-    private otRecordsRepository: Repository<OtRecord>,
-    @InjectRepository(User)
-    private usersRepository: Repository<User>,
-    @InjectRepository(Department)
-    private departmentsRepository: Repository<Department>,
-  ) {}
-
-  async getDashboardStats() {
-    const totalOtRecords = await this.otRecordsRepository.count();
-    const pendingOtRecords = await this.otRecordsRepository.count({
-      where: { status: OtStatus.PENDING },
-    });
-    const approvedOtRecords = await this.otRecordsRepository.count({
-      where: { status: OtStatus.APPROVED },
-    });
-    const totalUsers = await this.usersRepository.count({
-      where: { role: UserRole.REGULAR },
-    });
-
-    const totalOtHours = await this.otRecordsRepository
-      .createQueryBuilder('otRecord')
-      .select('SUM(otRecord.duration)', 'total')
-      .where('otRecord.status = :status', { status: OtStatus.APPROVED })
-      .getRawOne();
-
-    const avgOtDuration = await this.otRecordsRepository
-      .createQueryBuilder('otRecord')
-      .select('AVG(otRecord.duration)', 'average')
-      .where('otRecord.status = :status', { status: OtStatus.APPROVED })
-      .getRawOne();
-
-    return {
-      totalOtRecords,
-      pendingOtRecords,
-      approvedOtRecords,
-      totalUsers,
-      totalOtHours: parseFloat(totalOtHours.total) || 0,
-      avgOtDuration: parseFloat(avgOtDuration.average) || 0,
-    };
+    private dataSource: DataSource,
+    config: ConfigService,
+  ) {
+    this.timezone = config.get<string>('APP_TIMEZONE', 'Asia/Manila');
   }
 
-  async getOtByDepartment() {
-    const result = await this.otRecordsRepository
-      .createQueryBuilder('otRecord')
-      .leftJoin('otRecord.user', 'user')
-      .leftJoin('user.department', 'department')
-      .select('department.name', 'departmentName')
-      .addSelect('COUNT(otRecord.id)', 'count')
-      .addSelect('SUM(otRecord.duration)', 'totalHours')
-      .where('otRecord.status = :status', { status: 'approved' })
-      .groupBy('department.id, department.name')
-      .getRawMany();
-
-    return result.map(item => ({
-      departmentName: item.departmentName,
-      count: parseInt(item.count),
-      totalHours: parseFloat(item.totalHours) || 0,
-    }));
-  }
-
-  async getMonthlyOtStats(_year?: number) {
-    const d = new Date();
-    d.setMonth(d.getMonth() - 6);
-    const sixMonthsAgo = d.toISOString().split('T')[0];
-
-    const result = await this.otRecordsRepository.query(
-      `SELECT EXTRACT(MONTH FROM date)::int AS month,
-              COUNT(id)::int AS count,
-              COALESCE(SUM(duration), 0)::float AS "totalHours"
-       FROM ot_records
-       WHERE date >= $1 AND status = 'approved'
-       GROUP BY EXTRACT(MONTH FROM date)
-       ORDER BY month ASC`,
-      [sixMonthsAgo],
+  async getDashboardStats(actor: AuthUser) {
+    const params: unknown[] = [];
+    const where = scope(actor, params);
+    const [row] = await this.dataSource.query(
+      `SELECT
+         COUNT(*)::int AS "totalOtRecords",
+         COUNT(*) FILTER (WHERE r.status = '${OtStatus.PENDING}')::int AS "pendingOtRecords",
+         COUNT(*) FILTER (WHERE r.status = '${OtStatus.APPROVED}')::int AS "approvedOtRecords",
+         COALESCE(SUM(r.duration) FILTER (WHERE r.status = '${OtStatus.APPROVED}'), 0)::float AS "totalOtHours",
+         COALESCE(AVG(r.duration) FILTER (WHERE r.status = '${OtStatus.APPROVED}'), 0)::float AS "avgOtDuration"
+       FROM ot_records r
+       JOIN users u ON u.id = r.user_id
+       WHERE TRUE ${where}`,
+      params,
     );
 
-    return result.map((item: { month: number; count: number; totalHours: number }) => ({
-      month: item.month,
-      count: item.count,
-      totalHours: item.totalHours,
-    }));
-  }
-
-  async getTopOtUsers(limit: number = 10) {
-    const result = await this.otRecordsRepository
-      .createQueryBuilder('otRecord')
-      .leftJoin('otRecord.user', 'user')
-      .leftJoin('user.department', 'department')
-      .select('user.firstName', 'firstName')
-      .addSelect('user.lastName', 'lastName')
-      .addSelect('department.name', 'departmentName')
-      .addSelect('COUNT(otRecord.id)', 'count')
-      .addSelect('SUM(otRecord.duration)', 'totalHours')
-      .where('otRecord.status = :status', { status: 'approved' })
-      .groupBy('user.id, user.firstName, user.lastName, department.name')
-      .orderBy('SUM(otRecord.duration)', 'DESC')
-      .limit(limit)
-      .getRawMany();
-
-    return result.map(item => ({
-      name: `${item.firstName} ${item.lastName}`,
-      departmentName: item.departmentName,
-      count: parseInt(item.count),
-      totalHours: parseFloat(item.totalHours) || 0,
-    }));
-  }
-
-  async getOtTrends(days: number = 30) {
-    const d = new Date();
-    d.setDate(d.getDate() - days);
-    const cutoff = d.toISOString().split('T')[0];
-
-    const result = await this.otRecordsRepository.query(
-      `SELECT date::text AS date,
-              COUNT(id)::int AS count,
-              COALESCE(SUM(duration), 0)::float AS "totalHours"
-       FROM ot_records
-       WHERE date >= $1
-       GROUP BY date
-       ORDER BY date ASC`,
-      [cutoff],
+    const userParams: unknown[] = [UserRole.REGULAR];
+    const userWhere = scope(actor, userParams);
+    const [users] = await this.dataSource.query(
+      `SELECT COUNT(*)::int AS count FROM users u WHERE u.role = $1 AND u.is_active ${userWhere}`,
+      userParams,
     );
 
-    return result.map((item: { date: string; count: number; totalHours: number }) => ({
-      date: item.date,
-      count: item.count,
-      totalHours: item.totalHours,
+    return { ...row, totalUsers: users.count };
+  }
+
+  async getOtByDepartment(actor: AuthUser) {
+    const params: unknown[] = [OtStatus.APPROVED];
+    const where = scope(actor, params);
+    return this.dataSource.query(
+      `SELECT d.id AS "departmentId",
+              d.name AS "departmentName",
+              COUNT(r.id)::int AS count,
+              COALESCE(SUM(r.duration), 0)::float AS "totalHours"
+       FROM ot_records r
+       JOIN users u ON u.id = r.user_id
+       JOIN departments d ON d.id = u.department_id
+       WHERE r.status = $1 ${where}
+       GROUP BY d.id, d.name
+       ORDER BY "totalHours" DESC`,
+      params,
+    );
+  }
+
+  /** The last six calendar months including the current one, with empty months filled in. */
+  async getMonthlyOtStats(actor: AuthUser) {
+    const params: unknown[] = [OtStatus.APPROVED, this.timezone, MONTHS_SHOWN - 1];
+    const where = scope(actor, params);
+    return this.dataSource.query(
+      `WITH months AS (
+         SELECT generate_series(
+           date_trunc('month', (now() AT TIME ZONE $2)::date) - make_interval(months => $3::int),
+           date_trunc('month', (now() AT TIME ZONE $2)::date),
+           interval '1 month'
+         )::date AS month_start
+       )
+       SELECT EXTRACT(YEAR FROM m.month_start)::int AS year,
+              EXTRACT(MONTH FROM m.month_start)::int AS month,
+              COUNT(r.id)::int AS count,
+              COALESCE(SUM(r.duration), 0)::float AS "totalHours"
+       FROM months m
+       LEFT JOIN (
+         SELECT r.id, r.duration, r.date
+         FROM ot_records r
+         JOIN users u ON u.id = r.user_id
+         WHERE r.status = $1 ${where}
+       ) r ON date_trunc('month', r.date) = m.month_start
+       GROUP BY m.month_start
+       ORDER BY m.month_start`,
+      params,
+    );
+  }
+
+  /** Top users by approved hours this month, with the change against last month. */
+  async getTopOtUsers(actor: AuthUser, limit: number) {
+    const params: unknown[] = [OtStatus.APPROVED, this.timezone, limit];
+    const where = scope(actor, params);
+    const rows: {
+      userId: number;
+      firstName: string;
+      lastName: string;
+      departmentName: string;
+      count: number;
+      totalHours: number;
+      previousHours: number;
+    }[] = await this.dataSource.query(
+      `WITH bounds AS (
+         SELECT date_trunc('month', (now() AT TIME ZONE $2)::date)::date AS this_month,
+                (date_trunc('month', (now() AT TIME ZONE $2)::date) - interval '1 month')::date AS last_month
+       )
+       SELECT u.id AS "userId",
+              u.first_name AS "firstName",
+              u.last_name AS "lastName",
+              d.name AS "departmentName",
+              COUNT(r.id) FILTER (WHERE r.date >= b.this_month)::int AS count,
+              COALESCE(SUM(r.duration) FILTER (WHERE r.date >= b.this_month), 0)::float AS "totalHours",
+              COALESCE(SUM(r.duration) FILTER (WHERE r.date < b.this_month), 0)::float AS "previousHours"
+       FROM ot_records r
+       CROSS JOIN bounds b
+       JOIN users u ON u.id = r.user_id
+       LEFT JOIN departments d ON d.id = u.department_id
+       WHERE r.status = $1 AND r.date >= b.last_month ${where}
+       GROUP BY u.id, u.first_name, u.last_name, d.name
+       HAVING COUNT(r.id) FILTER (WHERE r.date >= b.this_month) > 0
+       ORDER BY "totalHours" DESC
+       LIMIT $3`,
+      params,
+    );
+
+    return rows.map(({ firstName, lastName, previousHours, ...rest }) => ({
+      ...rest,
+      name: `${firstName} ${lastName}`,
+      previousHours,
+      // null when there's nothing to compare against (no approved OT last month)
+      changePercent: previousHours > 0 ? Math.round(((rest.totalHours - previousHours) / previousHours) * 100) : null,
     }));
+  }
+
+  /** Daily approved OT for the last N days (including today), with empty days filled in. */
+  async getOtTrends(actor: AuthUser, days: number) {
+    const params: unknown[] = [OtStatus.APPROVED, this.timezone, days - 1];
+    const where = scope(actor, params);
+    return this.dataSource.query(
+      `WITH days AS (
+         SELECT generate_series(
+           (now() AT TIME ZONE $2)::date - $3::int,
+           (now() AT TIME ZONE $2)::date,
+           interval '1 day'
+         )::date AS day
+       )
+       SELECT to_char(dy.day, 'YYYY-MM-DD') AS date,
+              COUNT(r.id)::int AS count,
+              COALESCE(SUM(r.duration), 0)::float AS "totalHours"
+       FROM days dy
+       LEFT JOIN (
+         SELECT r.id, r.duration, r.date
+         FROM ot_records r
+         JOIN users u ON u.id = r.user_id
+         WHERE r.status = $1 ${where}
+       ) r ON r.date = dy.day
+       GROUP BY dy.day
+       ORDER BY dy.day`,
+      params,
+    );
   }
 }

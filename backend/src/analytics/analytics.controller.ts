@@ -1,41 +1,39 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { Controller, Get, Query } from '@nestjs/common';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { AuthUser } from '../auth/auth-user';
 import { UserRole } from '../common/enums';
 import { AnalyticsService } from './analytics.service';
+import { TopUsersQueryDto, TrendsQueryDto } from './dto/analytics-query.dto';
 
+/** All figures count approved overtime only, scoped to the supervisor's department (admins see everything). */
 @Controller('analytics')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles(UserRole.SUPERVISOR)
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
   @Get('dashboard')
-  getDashboardStats() {
-    return this.analyticsService.getDashboardStats();
+  getDashboardStats(@CurrentUser() user: AuthUser) {
+    return this.analyticsService.getDashboardStats(user);
   }
 
   @Get('by-department')
-  getOtByDepartment() {
-    return this.analyticsService.getOtByDepartment();
+  getOtByDepartment(@CurrentUser() user: AuthUser) {
+    return this.analyticsService.getOtByDepartment(user);
   }
 
   @Get('monthly')
-  getMonthlyOtStats(@Query('year') year?: string) {
-    const yearNum = year ? parseInt(year) : undefined;
-    return this.analyticsService.getMonthlyOtStats(yearNum);
+  getMonthlyOtStats(@CurrentUser() user: AuthUser) {
+    return this.analyticsService.getMonthlyOtStats(user);
   }
 
   @Get('top-users')
-  getTopOtUsers(@Query('limit') limit?: string) {
-    const limitNum = limit ? parseInt(limit) : undefined;
-    return this.analyticsService.getTopOtUsers(limitNum);
+  getTopOtUsers(@Query() query: TopUsersQueryDto, @CurrentUser() user: AuthUser) {
+    return this.analyticsService.getTopOtUsers(user, query.limit);
   }
 
   @Get('trends')
-  getOtTrends(@Query('days') days?: string) {
-    const daysNum = days ? parseInt(days) : undefined;
-    return this.analyticsService.getOtTrends(daysNum);
+  getOtTrends(@Query() query: TrendsQueryDto, @CurrentUser() user: AuthUser) {
+    return this.analyticsService.getOtTrends(user, query.days);
   }
 }
