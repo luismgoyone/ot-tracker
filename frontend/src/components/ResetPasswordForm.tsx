@@ -1,59 +1,94 @@
 import React, { useState } from 'react';
-import {
-  Box,
-  TextField,
-  Button,
-  Typography,
-  Alert,
-  InputAdornment,
-  IconButton,
-} from '@mui/material';
+import { Box, TextField, Button, Typography, Alert, InputAdornment, IconButton } from '@mui/material';
 import { Lock, Visibility, VisibilityOff } from '@mui/icons-material';
 import { useAuthStore } from '../stores/authStore';
+import { getErrorMessage } from '../api/client';
+import { newPasswordError } from './profile/passwordRules';
 
 interface ResetPasswordFormProps {
   onSuccess: () => void;
 }
 
+interface PasswordFieldProps {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+}
+
+const PasswordField = ({ label, placeholder, value, onChange, disabled }: PasswordFieldProps) => {
+  const [visible, setVisible] = useState(false);
+  return (
+    <>
+      <Typography variant="body2" fontWeight={500} color="grey.700" mb={0.75}>
+        {label}
+      </Typography>
+      <TextField
+        fullWidth
+        placeholder={placeholder}
+        type={visible ? 'text' : 'password'}
+        autoComplete="new-password"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        size="small"
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <Lock sx={{ fontSize: 18, color: 'text.disabled' }} />
+            </InputAdornment>
+          ),
+          endAdornment: (
+            <InputAdornment position="end">
+              <IconButton
+                size="small"
+                onClick={() => setVisible((v) => !v)}
+                edge="end"
+                aria-label={visible ? 'Hide password' : 'Show password'}
+              >
+                {visible ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+              </IconButton>
+            </InputAdornment>
+          ),
+        }}
+        sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'grey.50' } }}
+      />
+    </>
+  );
+};
+
+/** Forced password change after signing in with a temporary password (no current password needed). */
 export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onSuccess }) => {
-  const { changePassword } = useAuthStore();
+  const changePassword = useAuthStore((s) => s.changePassword);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showNew, setShowNew] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
+    const validationError = newPasswordError(newPassword, confirmPassword);
+    if (validationError) {
+      setError(validationError);
       return;
     }
     setIsLoading(true);
     try {
       await changePassword(newPassword);
       onSuccess();
-    } catch {
-      setError('Failed to update password. Please try again.');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to update password. Please try again.'));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const fieldSx = {
-    '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: '#F9FAFB' },
-  };
-
   return (
     <Box>
       <Box textAlign="center" mb={3}>
-        <Typography variant="h6" fontWeight={700} color="#1E293B">
+        <Typography variant="h6" fontWeight={700} color="text.primary">
           Set Your Password
         </Typography>
         <Typography variant="body2" color="text.secondary" mt={0.5}>
@@ -62,85 +97,31 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onSuccess 
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2 }}>
+        <Alert severity="error" sx={{ mb: 2.5 }}>
           {error}
         </Alert>
       )}
 
       <form onSubmit={handleSubmit}>
         <Box mb={2}>
-          <Typography variant="body2" fontWeight={500} color="#374151" mb={0.75}>
-            New Password
-          </Typography>
-          <TextField
-            fullWidth
-            placeholder="Min. 8 characters"
-            type={showNew ? 'text' : 'password'}
+          <PasswordField
+            label="New Password"
+            placeholder="8–72 characters"
             value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
+            onChange={setNewPassword}
             disabled={isLoading}
-            size="small"
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Lock sx={{ fontSize: 18, color: '#9CA3AF' }} />
-                </InputAdornment>
-              ),
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton size="small" onClick={() => setShowNew(!showNew)} edge="end">
-                    {showNew ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-            sx={fieldSx}
           />
         </Box>
-
         <Box mb={3}>
-          <Typography variant="body2" fontWeight={500} color="#374151" mb={0.75}>
-            Confirm Password
-          </Typography>
-          <TextField
-            fullWidth
+          <PasswordField
+            label="Confirm Password"
             placeholder="Re-enter your password"
-            type={showConfirm ? 'text' : 'password'}
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            onChange={setConfirmPassword}
             disabled={isLoading}
-            size="small"
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Lock sx={{ fontSize: 18, color: '#9CA3AF' }} />
-                </InputAdornment>
-              ),
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton size="small" onClick={() => setShowConfirm(!showConfirm)} edge="end">
-                    {showConfirm ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-            sx={fieldSx}
           />
         </Box>
-
-        <Button
-          type="submit"
-          fullWidth
-          variant="contained"
-          disabled={isLoading}
-          sx={{
-            py: 1.25,
-            borderRadius: 2,
-            fontSize: '0.95rem',
-            bgcolor: '#6366F1',
-            '&:hover': { bgcolor: '#4F46E5' },
-          }}
-        >
+        <Button type="submit" fullWidth variant="contained" disabled={isLoading} sx={{ py: 1.25, fontSize: '0.95rem' }}>
           {isLoading ? 'Updating...' : 'Update Password & Continue'}
         </Button>
       </form>

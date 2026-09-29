@@ -8,25 +8,24 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Avatar,
   Button,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
+import { SxProps, Theme } from '@mui/material/styles';
 import { Logout, AccessTime } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuthStore } from '../stores/authStore';
-import { UserRole } from '../types';
-import { sidebarNavByRole, panelLabelByRole, NavItem } from '../config/navConfig';
+import { useAuthStore } from '../../stores/authStore';
+import { UserRole } from '../../types';
+import { sidebarNavByRole, panelLabelByRole, NavItem } from '../../config/navConfig';
+import { UserAvatar } from '../common/UserAvatar';
+import { fullName } from '../../utils/format';
 
 interface SidebarProps {
   width: number;
   mobileOpen: boolean;
   onMobileClose: () => void;
 }
-
-const getInitials = (firstName: string, lastName: string) =>
-  `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 
 export const Sidebar: React.FC<SidebarProps> = ({ width, mobileOpen, onMobileClose }) => {
   const navigate = useNavigate();
@@ -58,7 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ width, mobileOpen, onMobileClo
           sx={{
             width: 36,
             height: 36,
-            bgcolor: '#6366F1',
+            bgcolor: 'primary.main',
             borderRadius: 2,
             display: 'flex',
             alignItems: 'center',
@@ -66,20 +65,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ width, mobileOpen, onMobileClo
             flexShrink: 0,
           }}
         >
-          <AccessTime sx={{ color: '#fff', fontSize: 20 }} />
+          <AccessTime sx={{ color: 'primary.contrastText', fontSize: 20 }} />
         </Box>
         <Box>
-          <Typography variant="subtitle2" fontWeight={700} color="#1E293B" lineHeight={1.2}>
+          <Typography variant="subtitle2" fontWeight={700} color="text.primary" lineHeight={1.2}>
             OT Tracker
           </Typography>
-          <Typography variant="caption" color="#94A3B8" lineHeight={1}>
+          <Typography variant="caption" color="text.disabled" lineHeight={1}>
             {panelLabel}
           </Typography>
         </Box>
       </Box>
 
       {/* Navigation */}
-      <Box sx={{ flex: 1, overflowY: 'auto', py: 1.5 }}>
+      <Box component="nav" sx={{ flex: 1, overflowY: 'auto', py: 1.5 }}>
         {navSections.map((section) => (
           <Box key={section.section ?? 'main'} sx={{ mb: 0.5 }}>
             {section.section && (
@@ -90,7 +89,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ width, mobileOpen, onMobileClo
                   pt: 1.5,
                   pb: 0.5,
                   display: 'block',
-                  color: '#94A3B8',
+                  color: 'text.disabled',
                   fontWeight: 700,
                   letterSpacing: '0.08em',
                   fontSize: '0.65rem',
@@ -106,19 +105,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ width, mobileOpen, onMobileClo
                   <ListItem key={item.label} disablePadding sx={{ px: 1.5, py: 0.2 }}>
                     <ListItemButton
                       onClick={() => handleNavClick(item.path)}
+                      aria-current={isActive ? 'page' : undefined}
                       sx={{
                         borderRadius: 2,
                         py: 0.85,
                         px: 1.5,
-                        bgcolor: isActive ? '#EEF2FF' : 'transparent',
-                        color: isActive ? '#6366F1' : '#64748B',
+                        bgcolor: isActive ? 'tint.primary' : 'transparent',
+                        color: isActive ? 'primary.main' : 'text.secondary',
                         '&:hover': {
-                          bgcolor: isActive ? '#EEF2FF' : '#F8FAFC',
-                          color: isActive ? '#6366F1' : '#1E293B',
+                          bgcolor: isActive ? 'tint.primary' : 'grey.50',
+                          color: isActive ? 'primary.main' : 'text.primary',
                         },
                       }}
                     >
-                      <ListItemIcon sx={{ minWidth: 30, color: isActive ? '#6366F1' : '#94A3B8' }}>
+                      <ListItemIcon sx={{ minWidth: 30, color: isActive ? 'primary.main' : 'text.disabled' }}>
                         {item.icon}
                       </ListItemIcon>
                       <ListItemText
@@ -138,26 +138,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ width, mobileOpen, onMobileClo
       </Box>
 
       {/* User + Sign Out */}
-      <Box sx={{ p: 2, borderTop: '1px solid #E2E8F0' }}>
+      <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1, px: 0.5 }}>
-          <Avatar
-            sx={{
-              width: 34,
-              height: 34,
-              bgcolor: '#EEF2FF',
-              color: '#6366F1',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              flexShrink: 0,
-            }}
-          >
-            {getInitials(user.firstName, user.lastName)}
-          </Avatar>
+          <UserAvatar firstName={user.firstName} lastName={user.lastName} colorKey={user.id} size={34} />
           <Box sx={{ overflow: 'hidden' }}>
-            <Typography variant="body2" fontWeight={600} color="#1E293B" noWrap sx={{ lineHeight: 1.3 }}>
-              {user.firstName} {user.lastName}
+            <Typography variant="body2" fontWeight={600} color="text.primary" noWrap sx={{ lineHeight: 1.3 }}>
+              {fullName(user)}
             </Typography>
-            <Typography variant="caption" color="#94A3B8" noWrap sx={{ lineHeight: 1.2 }}>
+            <Typography variant="caption" color="text.disabled" noWrap display="block" sx={{ lineHeight: 1.2 }}>
               {user.email}
             </Typography>
           </Box>
@@ -167,13 +155,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ width, mobileOpen, onMobileClo
           startIcon={<Logout fontSize="small" />}
           onClick={handleLogout}
           sx={{
-            color: '#94A3B8',
+            color: 'text.disabled',
             justifyContent: 'flex-start',
             px: 1.5,
             py: 0.7,
             borderRadius: 2,
             fontSize: '0.8rem',
-            '&:hover': { bgcolor: '#FEF2F2', color: '#EF4444' },
+            '&:hover': { bgcolor: 'tint.error', color: 'error.main' },
           }}
         >
           Sign Out
@@ -182,14 +170,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ width, mobileOpen, onMobileClo
     </>
   );
 
-  const drawerPaperSx = {
+  const drawerPaperSx: SxProps<Theme> = {
     width,
-    boxSizing: 'border-box' as const,
-    bgcolor: '#FFFFFF',
-    color: '#374151',
-    borderRight: '1px solid #E2E8F0',
+    boxSizing: 'border-box',
+    bgcolor: 'background.paper',
+    color: 'text.secondary',
+    borderRight: 1,
+    borderColor: 'divider',
     display: 'flex',
-    flexDirection: 'column' as const,
+    flexDirection: 'column',
     top: 0,
     height: '100%',
   };
@@ -208,10 +197,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ width, mobileOpen, onMobileClo
   }
 
   return (
-    <Drawer
-      variant="permanent"
-      sx={{ width, flexShrink: 0, '& .MuiDrawer-paper': drawerPaperSx }}
-    >
+    <Drawer variant="permanent" sx={{ width, flexShrink: 0, '& .MuiDrawer-paper': drawerPaperSx }}>
       {drawerContent}
     </Drawer>
   );

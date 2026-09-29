@@ -1,9 +1,9 @@
 import React from 'react';
 import { BottomNavigation, BottomNavigationAction, Paper } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuthStore } from '../stores/authStore';
-import { UserRole } from '../types';
-import { bottomNavByRole } from '../config/navConfig';
+import { useAuthStore } from '../../stores/authStore';
+import { UserRole } from '../../types';
+import { bottomNavByRole } from '../../config/navConfig';
 
 export const BottomNav: React.FC = () => {
   const navigate = useNavigate();
@@ -23,23 +23,20 @@ export const BottomNav: React.FC = () => {
         right: 0,
         display: { xs: 'block', md: 'none' },
         zIndex: (theme) => theme.zIndex.appBar,
-        borderTop: '1px solid #E2E8F0',
+        borderTop: 1,
+        borderColor: 'divider',
       }}
     >
       <BottomNavigation
         value={currentValue === -1 ? false : currentValue}
         onChange={(_, newValue) => navigate(items[newValue].path)}
         sx={{
-          '& .MuiBottomNavigationAction-root': { color: '#94A3B8' },
-          '& .Mui-selected': { color: '#6366F1 !important' },
+          '& .MuiBottomNavigationAction-root': { color: 'text.disabled' },
+          '& .MuiBottomNavigationAction-root.Mui-selected': { color: 'primary.main' },
         }}
       >
         {items.map((item) => (
-          <BottomNavigationAction
-            key={item.path}
-            label={item.label}
-            icon={item.icon}
-          />
+          <BottomNavigationAction key={item.path} label={item.label} icon={item.icon} />
         ))}
       </BottomNavigation>
     </Paper>

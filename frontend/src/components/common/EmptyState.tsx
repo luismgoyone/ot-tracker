@@ -7,13 +7,15 @@ interface EmptyStateProps {
   title?: string;
   description?: string;
   icon?: React.ReactNode;
+  action?: React.ReactNode;
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
   height,
   title = 'No data yet',
   description = 'Data will appear here once OT records are submitted.',
-  icon = <InsertChartOutlined sx={{ fontSize: 22, color: '#94A3B8' }} />,
+  icon = <InsertChartOutlined sx={{ fontSize: 22, color: 'text.disabled' }} />,
+  action,
 }) => (
   <Box
     height={height}
@@ -30,7 +32,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         width: 44,
         height: 44,
         borderRadius: '50%',
-        bgcolor: '#F1F5F9',
+        bgcolor: 'grey.100',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -38,11 +40,12 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     >
       {icon}
     </Box>
-    <Typography variant="body2" fontWeight={600} color="#1E293B">
+    <Typography variant="body2" fontWeight={600} color="text.primary">
       {title}
     </Typography>
     <Typography variant="caption" color="text.secondary" sx={{ maxWidth: 280 }}>
       {description}
     </Typography>
+    {action && <Box mt={1}>{action}</Box>}
   </Box>
 );
