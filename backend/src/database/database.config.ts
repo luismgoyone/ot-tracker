@@ -17,6 +17,7 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
       username: this.configService.get('DATABASE_USER', 'postgres'),
       password: this.configService.get('DATABASE_PASSWORD', 'password'),
       database: this.configService.get('DATABASE_NAME', 'ot_tracker'),
+      ssl: this.configService.get('DATABASE_SSL') === 'true' ? { rejectUnauthorized: false } : false,
       entities: [User, Department, OtRecord],
       synchronize: false, // Use existing database schema from init.sql
       logging: this.configService.get('NODE_ENV', 'development') === 'development',
