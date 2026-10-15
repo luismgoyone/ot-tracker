@@ -55,3 +55,7 @@ tmp/
 temp/
 Claude.md
 .claude
+
+# Playwright
+test-results/
+playwright-report/

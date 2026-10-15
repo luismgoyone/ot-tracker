@@ -173,6 +173,10 @@ npm run lint
 npm run build   # type-check + production build
 ```
 
+### Demo recording
+`npm run demo:record` (in `frontend/`, needs Docker; run `npx playwright install chromium` once) records a ~15s silent tour as an admin to `frontend/test-results/demo/ot-tracker.webm`, plus `ot-tracker.json` with the seconds of lead-in to trim.
+It starts its own throwaway stack (Postgres in a temporary container on port 54339, the backend on 3001, `vite preview` on 4173), seeds it with `npm run seed` plus `frontend/demo/demo-data.sql`, and never touches the live demo.
+
 ## Security
 
 - Every route requires a JWT unless it's explicitly marked public, and the user is re-checked on every request, so deactivating someone or changing their role takes effect immediately
